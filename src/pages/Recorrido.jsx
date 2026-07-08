@@ -1,0 +1,122 @@
+import { useCallback, useEffect, useState } from "react";
+import { api } from "../api.js";
+import {
+  dinero, hoyISO, ordenarRecorrido, montoACobrar, linksGoogleMaps,
+  gananciaRepartidor, nombreFormaPago,
+} from "../logic.js";
+
+export default function Recorrido({ config }) {
+  const [fecha, setFecha] = useState(hoyISO());
+  const [pedidos, setPedidos] = useState(null);
+  const [error, setError] = useState(null);
+  const [ocupado, setOcupado] = useState(null); // id del pedido que se está actualizando
+
+  const cargar = useCallback(() => {
+    setError(null);
+    api.pedidosPorFecha(fecha)
+      .then((ps) => setPedidos(ps.filter((p) => p.estado !== "cancelado")))
+      .catch((e) => setError(e.message));
+  }, [fecha]);
+
+  useEffect(cargar, [cargar]);
+
+  async function marcar(pedido, cambios) {
+    setOcupado(pedido.id);
+    try {
+      await api.editarPedido(pedido.id, cambios);
+      cargar();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setOcupado(null);
+    }
+  }
+
+  if (error) return <div className="aviso error">{error} <button className="chico secundario" onClick={cargar}>Reintentar</button></div>;
+  if (!pedidos) return <div className="vacio">Cargando recorrido…</div>;
+
+  const orden = ordenarRecorrido(pedidos);
+  const pendientes = orden.filter((p) => p.estado !== "entregado");
+  const entregados = orden.filter((p) => p.estado === "entregado");
+  const totalDia = orden.reduce((s, p) => s + gananciaRepartidor(p), 0);
+  const links = linksGoogleMaps(config.direccion_local, pendientes);
+
+  return (
+    <>
+      <div className="header">
+        <span className="marca">🚚 Recorrido</span>
+        <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} style={{ width: "auto" }} />
+      </div>
+
+      <div className="tarjeta">
+        <div className="linea">
+          <span><strong>{entregados.length} de {orden.length}</strong> entregados</span>
+          <span className="monto">Envíos del día: {dinero(totalDia)}</span>
+        </div>
+        {links.map((url, i) => (
+          <a key={url} className="botonlink" href={url} target="_blank" rel="noreferrer">
+            🗺️ Abrir ruta en Google Maps{links.length > 1 ? ` (tramo ${i + 1} de ${links.length})` : ""}
+          </a>
+        ))}
+      </div>
+
+      {orden.length === 0 && <div className="vacio">No hay entregas para este día 🎉</div>}
+
+      {orden.map((p) => {
+        const contraEntrega = p.forma_pago === "efectivo_contra_entrega";
+        const entregado = p.estado === "entregado";
+        return (
+          <div key={p.id} className={`tarjeta parada ${entregado ? "entregada" : ""}`}>
+            <div className="linea" style={{ paddingBottom: 0 }}>
+              <strong>{p.cliente_nombre}</strong>
+              <span>
+                {p.tiene_refrigerados && <span className="badge frio">❄️ FRÍO</span>}{" "}
+                {contraEntrega
+                  ? <span className="badge efectivo">💵 {p.pago_recibido ? "COBRADO" : "COBRAR"}</span>
+                  : <span className="badge pago">{nombreFormaPago(p.forma_pago)}</span>}
+              </span>
+            </div>
+            <div className="direccion">📍 {p.direccion}</div>
+            {p.referencia && <div className="referencia">👉 {p.referencia}</div>}
+            {p.notas && <div className="referencia">📝 {p.notas}</div>}
+            <div className="mini">{p.zona?.nombre}{p.envio_gratis ? " · envío gratis (lo paga Nutridiet)" : ` · envío ${dinero(p.costo_envio)}`}</div>
+
+            {contraEntrega && !entregado && (
+              <div className="cobrar">💵 COBRAR {dinero(montoACobrar(p))} (mercadería {dinero(p.monto_pedido)} + envío {p.envio_gratis ? "$0" : dinero(p.costo_envio)})</div>
+            )}
+
+            <div className="acciones">
+              <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://maps.google.com/?q=${encodeURIComponent(p.direccion)}`} target="_blank" rel="noreferrer">📍 Mapa</a>
+              <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://wa.me/${p.cliente_telefono.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">💬 WhatsApp</a>
+            </div>
+
+            {!entregado ? (
+              <div className="acciones">
+                <button
+                  className="primario"
+                  disabled={ocupado === p.id}
+                  onClick={() => marcar(p, { estado: "entregado", ...(contraEntrega ? { pago_recibido: true } : {}) })}
+                >
+                  Entregado ✅
+                </button>
+                <button
+                  className="peligro"
+                  disabled={ocupado === p.id}
+                  onClick={() => {
+                    const nota = window.prompt("¿Qué pasó? (queda como nota)", "No estaba");
+                    if (nota === null) return;
+                    marcar(p, { estado: "pendiente", notas: [p.notas, `${fecha}: ${nota}`].filter(Boolean).join(" | ") });
+                  }}
+                >
+                  No estaba ❌
+                </button>
+              </div>
+            ) : (
+              <div className="mini" style={{ marginTop: 8 }}>✅ Entregado{contraEntrega ? " y cobrado" : ""}</div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}

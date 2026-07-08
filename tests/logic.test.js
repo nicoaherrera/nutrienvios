@@ -1,0 +1,172 @@
+// Tests de los criterios de aceptación de la spec (la parte de lógica pura).
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  esEnvioGratis, costoEnvio, validarPedido, validarCupon, esClienteNuevo,
+  ordenarRecorrido, montoACobrar, linksGoogleMaps, calcularLiquidacion,
+  semanaPasada, gananciaRepartidor,
+} from "../src/logic.js";
+
+const config = {
+  umbral_envio_gratis: "100000",
+  cupon_minimo: "30000",
+  cupon_vigencia_dias: "30",
+};
+
+const zonas = {
+  casco: { id: 1, nombre: "Casco urbano", tarifa: 3500, orden_recorrido: 1, minimo_compra: null, refrigerados_ok: true },
+  hornos: { id: 2, nombre: "Los Hornos / Tolosa / Ringuelet", tarifa: 4500, orden_recorrido: 2, minimo_compra: null, refrigerados_ok: true },
+  citybell: { id: 3, nombre: "City Bell / Gonnet", tarifa: 6000, orden_recorrido: 3, minimo_compra: null, refrigerados_ok: false },
+  berisso: { id: 4, nombre: "Berisso / Ensenada / Punta Lara", tarifa: 6500, orden_recorrido: 4, minimo_compra: 50000, refrigerados_ok: false },
+};
+
+test("pedido de $120.000 a Berisso por MP: envío GRATIS y $6.500 a favor del repartidor", () => {
+  assert.equal(esEnvioGratis(120000, config), true);
+  assert.equal(costoEnvio(120000, zonas.berisso, config), 0);
+
+  const pedido = {
+    estado: "entregado", forma_pago: "mercadopago", monto_pedido: 120000,
+    costo_envio: 0, envio_gratis: true, zona: zonas.berisso,
+  };
+  const liq = calcularLiquidacion([pedido]);
+  assert.equal(liq.totalEnviosGratis, 6500);
+  assert.equal(liq.debeNutridiet, 6500);
+  assert.equal(liq.debeRepartidor, 0);
+  assert.equal(liq.neto, 6500);
+});
+
+test("pedido de $60.000 al casco contra entrega: cobrar $63.500 y $60.000 a favor de Nutridiet", () => {
+  const pedido = {
+    estado: "entregado", forma_pago: "efectivo_contra_entrega", monto_pedido: 60000,
+    costo_envio: 3500, envio_gratis: false, zona: zonas.casco,
+  };
+  assert.equal(montoACobrar(pedido), 63500);
+  const liq = calcularLiquidacion([pedido]);
+  assert.equal(liq.debeRepartidor, 60000);
+  assert.equal(liq.debeNutridiet, 0); // el envío ya se lo quedó en la puerta
+  assert.equal(liq.neto, -60000); // el repartidor entrega la diferencia
+});
+
+test("pedido de $40.000 a Ensenada: bloqueante por mínimo de $50.000", () => {
+  const errores = validarPedido({ monto: 40000, zona: zonas.berisso, tieneRefrigerados: false });
+  assert.equal(errores.length, 1);
+  assert.match(errores[0], /mínimo/i);
+});
+
+test("refrigerados a City Bell: bloqueante mientras refrigerados_ok = false", () => {
+  const errores = validarPedido({ monto: 80000, zona: zonas.citybell, tieneRefrigerados: true });
+  assert.equal(errores.length, 1);
+  assert.match(errores[0], /refrigerados/i);
+  // sin refrigerados pasa
+  assert.equal(validarPedido({ monto: 80000, zona: zonas.citybell, tieneRefrigerados: false }).length, 0);
+});
+
+test("dos pedidos al casco el mismo día: el de refrigerados va primero", () => {
+  const seco = { id: "a", zona: zonas.casco, tiene_refrigerados: false, created_at: "2026-07-01T09:00:00" };
+  const frio = { id: "b", zona: zonas.casco, tiene_refrigerados: true, created_at: "2026-07-01T11:00:00" };
+  const orden = ordenarRecorrido([seco, frio]);
+  assert.deepEqual(orden.map((p) => p.id), ["b", "a"]);
+});
+
+test("recorrido: zonas en orden y refrigerados primero dentro de cada zona", () => {
+  const p = (id, zona, frio, hora) => ({ id, zona, tiene_refrigerados: frio, created_at: `2026-07-01T${hora}:00:00` });
+  const orden = ordenarRecorrido([
+    p("berisso", zonas.berisso, false, "08"),
+    p("casco-seco", zonas.casco, false, "09"),
+    p("hornos-frio", zonas.hornos, true, "10"),
+    p("casco-frio", zonas.casco, true, "11"),
+  ]);
+  assert.deepEqual(orden.map((x) => x.id), ["casco-frio", "casco-seco", "hornos-frio", "berisso"]);
+});
+
+test("cliente nuevo: sin pedidos previos no cancelados", () => {
+  assert.equal(esClienteNuevo([]), true);
+  assert.equal(esClienteNuevo([{ estado: "cancelado" }]), true);
+  assert.equal(esClienteNuevo([{ estado: "entregado" }]), false);
+  assert.equal(esClienteNuevo([{ estado: "pendiente" }]), false);
+});
+
+test("cupón con 3 compras previas entregadas: warning de inválido", () => {
+  const previos = [
+    { estado: "entregado", fecha_entrega: "2026-06-01" },
+    { estado: "entregado", fecha_entrega: "2026-06-10" },
+    { estado: "entregado", fecha_entrega: "2026-06-20" },
+  ];
+  const motivo = validarCupon({ pedidosPrevios: previos, monto: 50000, config, hoy: "2026-07-08" });
+  assert.ok(motivo, "debería ser inválido");
+  assert.match(motivo, /segunda compra/i);
+});
+
+test("cupón válido: exactamente 1 entrega previa, monto ok, dentro de vigencia", () => {
+  const previos = [{ estado: "entregado", fecha_entrega: "2026-06-20" }];
+  assert.equal(validarCupon({ pedidosPrevios: previos, monto: 35000, config, hoy: "2026-07-08" }), null);
+  // por debajo del mínimo
+  assert.match(validarCupon({ pedidosPrevios: previos, monto: 20000, config, hoy: "2026-07-08" }), /mínimo/i);
+  // vencido (32 días después de la primera entrega)
+  assert.match(validarCupon({ pedidosPrevios: previos, monto: 35000, config, hoy: "2026-07-22" }), /venció/i);
+});
+
+test("cupón vencido pasada la vigencia", () => {
+  const previos = [{ estado: "entregado", fecha_entrega: "2026-05-01" }];
+  const motivo = validarCupon({ pedidosPrevios: previos, monto: 35000, config, hoy: "2026-07-08" });
+  assert.match(motivo, /venció/i);
+});
+
+test("link de Google Maps: origen + paradas en orden, máx. 9 por link", () => {
+  const local = "Av. 7 N°136, La Plata";
+  const paradas = [{ direccion: "Calle 1 y 50, La Plata" }, { direccion: "Montevideo 456, Berisso" }];
+  const links = linksGoogleMaps(local, paradas);
+  assert.equal(links.length, 1);
+  assert.equal(
+    links[0],
+    "https://www.google.com/maps/dir/" +
+      [local, paradas[0].direccion, paradas[1].direccion].map(encodeURIComponent).join("/")
+  );
+
+  // 11 paradas → 2 links; el segundo arranca en la parada 9
+  const muchas = Array.from({ length: 11 }, (_, i) => ({ direccion: `Calle ${i + 1}, La Plata` }));
+  const dos = linksGoogleMaps(local, muchas);
+  assert.equal(dos.length, 2);
+  assert.ok(dos[0].endsWith(encodeURIComponent("Calle 9, La Plata")));
+  assert.ok(dos[1].startsWith("https://www.google.com/maps/dir/" + encodeURIComponent("Calle 9, La Plata")));
+  assert.ok(dos[1].endsWith(encodeURIComponent("Calle 11, La Plata")));
+});
+
+test("cancelados y no entregados no aparecen en la liquidación", () => {
+  const liq = calcularLiquidacion([
+    { estado: "cancelado", forma_pago: "efectivo_contra_entrega", monto_pedido: 99999, costo_envio: 3500, envio_gratis: false, zona: zonas.casco },
+    { estado: "pendiente", forma_pago: "transferencia", monto_pedido: 50000, costo_envio: 3500, envio_gratis: false, zona: zonas.casco },
+    { estado: "entregado", forma_pago: "transferencia", monto_pedido: 50000, costo_envio: 3500, envio_gratis: false, zona: zonas.casco },
+  ]);
+  assert.equal(liq.entregados.length, 1);
+  assert.equal(liq.debeNutridiet, 3500);
+  assert.equal(liq.debeRepartidor, 0);
+  assert.equal(liq.neto, 3500);
+});
+
+test("liquidación mixta: neto combina los tres rubros", () => {
+  const pedidos = [
+    // transferencia con envío: $4.500 al repartidor
+    { estado: "entregado", forma_pago: "transferencia", monto_pedido: 70000, costo_envio: 4500, envio_gratis: false, zona: zonas.hornos },
+    // envío gratis pagado por MP: tarifa $3.500 al repartidor
+    { estado: "entregado", forma_pago: "mercadopago", monto_pedido: 150000, costo_envio: 0, envio_gratis: true, zona: zonas.casco },
+    // efectivo: repartidor debe $30.000 (el envío de $3.500 ya se lo quedó)
+    { estado: "entregado", forma_pago: "efectivo_contra_entrega", monto_pedido: 30000, costo_envio: 3500, envio_gratis: false, zona: zonas.casco },
+  ];
+  const liq = calcularLiquidacion(pedidos);
+  assert.equal(liq.debeNutridiet, 8000);
+  assert.equal(liq.debeRepartidor, 30000);
+  assert.equal(liq.neto, -22000);
+});
+
+test("ganancia del repartidor por pedido (total del día en el recorrido)", () => {
+  assert.equal(gananciaRepartidor({ envio_gratis: true, costo_envio: 0, zona: zonas.berisso }), 6500);
+  assert.equal(gananciaRepartidor({ envio_gratis: false, costo_envio: 4500, zona: zonas.hornos }), 4500);
+});
+
+test("semana pasada: lunes a domingo", () => {
+  // miércoles 8 de julio de 2026 → semana pasada = lunes 29/6 a domingo 5/7
+  const { desde, hasta } = semanaPasada(new Date("2026-07-08T12:00:00"));
+  assert.equal(desde, "2026-06-29");
+  assert.equal(hasta, "2026-07-05");
+});
