@@ -12,8 +12,10 @@ export function rol(req) {
 export async function sb(pathAndQuery, { method = "GET", body } = {}) {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY;
-  if (!url || !key) {
-    const err = new Error("Supabase no configurado (SUPABASE_URL / SUPABASE_SERVICE_KEY)");
+  if (!url || !key || url.includes("COMPLETAR") || key.includes("COMPLETAR")) {
+    const err = new Error(
+      "Falta configurar Supabase: completá SUPABASE_URL y SUPABASE_SERVICE_KEY en el .env (o en Vercel) y reiniciá el servidor"
+    );
     err.status = 500;
     throw err;
   }
