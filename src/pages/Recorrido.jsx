@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
 import {
   dinero, hoyISO, ordenarRecorrido, montoACobrar, linksGoogleMaps,
-  gananciaRepartidor, nombreFormaPago,
+  gananciaRepartidor, nombreFormaPago, idCorto, siguienteParada,
+  ultimaEntregada, demoraEstimada, linkAvisoEnCamino,
 } from "../logic.js";
 
 export default function Recorrido({ config }) {
@@ -40,6 +41,8 @@ export default function Recorrido({ config }) {
   const entregados = orden.filter((p) => p.estado === "entregado");
   const totalDia = orden.reduce((s, p) => s + gananciaRepartidor(p), 0);
   const links = linksGoogleMaps(config.direccion_local, pendientes);
+  const proxima = siguienteParada(orden);
+  const ultima = ultimaEntregada(orden);
 
   return (
     <>
@@ -65,10 +68,12 @@ export default function Recorrido({ config }) {
       {orden.map((p) => {
         const contraEntrega = p.forma_pago === "efectivo_contra_entrega";
         const entregado = p.estado === "entregado";
+        const esProxima = proxima?.id === p.id;
         return (
-          <div key={p.id} className={`tarjeta parada ${entregado ? "entregada" : ""}`}>
+          <div key={p.id} className={`tarjeta parada ${entregado ? "entregada" : ""} ${esProxima ? "proxima" : ""}`}>
+            {esProxima && <div className="badge proxima">▶ PRÓXIMA PARADA</div>}
             <div className="linea" style={{ paddingBottom: 0 }}>
-              <strong>{p.cliente_nombre}</strong>
+              <strong>{p.cliente_nombre} <span className="mini">{idCorto(p)}</span></strong>
               <span>
                 {p.tiene_refrigerados && <span className="badge frio">❄️ FRÍO</span>}{" "}
                 {contraEntrega
@@ -83,6 +88,12 @@ export default function Recorrido({ config }) {
 
             {contraEntrega && !entregado && (
               <div className="cobrar">💵 COBRAR {dinero(montoACobrar(p))} (mercadería {dinero(p.monto_pedido)} + envío {p.envio_gratis ? "$0" : dinero(p.costo_envio)})</div>
+            )}
+
+            {esProxima && (
+              <a className="botonlink wsp" href={linkAvisoEnCamino(p, demoraEstimada(p, ultima))} target="_blank" rel="noreferrer">
+                Avisar que voy en camino 🚀
+              </a>
             )}
 
             <div className="acciones">

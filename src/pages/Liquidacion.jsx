@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
-import { dinero, semanaPasada, calcularLiquidacion, resumenPorZona, metricas, nombreFormaPago } from "../logic.js";
+import { dinero, semanaPasada, calcularLiquidacion, resumenPorZona, metricas, nombreFormaPago, idCorto } from "../logic.js";
 
 function TablaPedidos({ pedidos, columnaMonto, valorMonto }) {
   if (!pedidos.length) return <p className="mini">Sin pedidos en este rubro.</p>;
@@ -14,7 +14,7 @@ function TablaPedidos({ pedidos, columnaMonto, valorMonto }) {
           {pedidos.map((p) => (
             <tr key={p.id}>
               <td>{p.fecha_entrega.slice(5)}</td>
-              <td>{p.cliente_nombre}</td>
+              <td><span className="mini">{idCorto(p)}</span> {p.cliente_nombre}</td>
               <td>{p.zona?.nombre}</td>
               <td>{nombreFormaPago(p.forma_pago)}</td>
               <td className="num">{dinero(valorMonto(p))}</td>

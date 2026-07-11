@@ -33,6 +33,7 @@ insert into config (clave, valor) values
 
 create table pedidos (
   id uuid primary key default gen_random_uuid(),
+  numero_pedido serial, -- ID corto para hablar con el cliente ("pedido #37")
   fecha_entrega date not null,
   cliente_nombre text not null,
   cliente_telefono text not null,

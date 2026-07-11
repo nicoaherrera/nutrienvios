@@ -171,6 +171,51 @@ export function semanaPasada(base = new Date()) {
   return { desde: hoyISO(lunes), hasta: hoyISO(domingo) };
 }
 
+// ID corto para hablar con el cliente: el numero_pedido serial de la base,
+// o (pedidos anteriores a la migración) los últimos 5 del UUID.
+export function idCorto(pedido) {
+  if (pedido.numero_pedido != null) return `#${pedido.numero_pedido}`;
+  return "#" + String(pedido.id || "").replace(/-/g, "").slice(-5).toUpperCase();
+}
+
+// Próxima parada del recorrido: la primera no entregada del orden ya calculado.
+// Stateless a propósito: sobrevive a recargas de página arriba de la camioneta.
+export function siguienteParada(recorridoOrdenado) {
+  return recorridoOrdenado.find((p) => p.estado !== "entregado") || null;
+}
+
+// Posición actual estimada del repartidor: la parada entregada más avanzada
+// en el orden del recorrido (el reparto sigue ese orden).
+export function ultimaEntregada(recorridoOrdenado) {
+  const entregadas = recorridoOrdenado.filter((p) => p.estado === "entregado");
+  return entregadas.length ? entregadas[entregadas.length - 1] : null;
+}
+
+// ETA heurístico por saltos de zona, sin APIs pagas.
+export function demoraEstimada(siguiente, ultima) {
+  if (!ultima) return "en los próximos minutos";
+  return siguiente.zona_id === ultima.zona_id ? "15 a 20 minutos" : "30 a 45 minutos";
+}
+
+export function mensajeEnCamino(pedido, demora) {
+  const llegada = demora === "en los próximos minutos"
+    ? "llega en los próximos minutos"
+    : `llega en unos ${demora}`;
+  let msg =
+    `¡Hola ${pedido.cliente_nombre}! 🌱 Te escribimos de Nutridiet Market. ` +
+    `¡Buenas noticias: tu pedido ${idCorto(pedido)} ya está en camino a ${pedido.direccion}! 🚚 ` +
+    `El repartidor ${llegada}. ¡Gracias por elegirnos! 💚`;
+  if (pedido.tiene_refrigerados) {
+    msg += " Tus refrigerados viajan en conservadora ❄️ así te llegan bien fresquitos.";
+  }
+  return msg;
+}
+
+export function linkAvisoEnCamino(pedido, demora) {
+  const tel = normalizarTelefono(pedido.cliente_telefono);
+  return `https://wa.me/${tel}?text=${encodeURIComponent(mensajeEnCamino(pedido, demora))}`;
+}
+
 const FORMAS_PAGO = {
   transferencia: "Transferencia",
   mercadopago: "Mercado Pago",
@@ -184,7 +229,7 @@ export function nombreFormaPago(fp) {
 export function textoConfirmacionWhatsApp(pedido, zona, config) {
   const total = Number(pedido.monto_pedido) + Number(pedido.costo_envio);
   const lineas = [
-    `¡Hola ${pedido.cliente_nombre}! Te confirmamos tu pedido de Nutridiet Market 🌱`,
+    `¡Hola ${pedido.cliente_nombre}! Te confirmamos tu pedido ${idCorto(pedido)} de Nutridiet Market 🌱`,
     ``,
     `🧾 Mercadería: ${dinero(pedido.monto_pedido)}${pedido.cupon_usado ? ` (con cupón ${pedido.cupon_usado} aplicado)` : ""}`,
     `🚚 Envío (${zona.nombre}): ${pedido.envio_gratis ? "GRATIS 🎉" : dinero(pedido.costo_envio)}`,

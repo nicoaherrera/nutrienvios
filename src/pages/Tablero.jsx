@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
-import { dinero, hoyISO, nombreFormaPago, textoCuponWhatsApp } from "../logic.js";
+import { dinero, hoyISO, nombreFormaPago, textoCuponWhatsApp, idCorto } from "../logic.js";
 
 const ESTADOS = ["pendiente", "en_reparto", "entregado", "cancelado"];
 
@@ -74,7 +74,7 @@ export default function Tablero({ config, navegar }) {
     <div className="tarjeta" style={{ marginBottom: 8 }}>
       <div className="linea" style={{ padding: 0 }}>
         <strong>
-          {p.cliente_nombre} {p.cliente_nuevo && <span className="badge nuevo">NUEVO</span>}{" "}
+          <span className="mini">{idCorto(p)}</span> {p.cliente_nombre} {p.cliente_nuevo && <span className="badge nuevo">NUEVO</span>}{" "}
           {p.tiene_refrigerados && <span className="badge frio">❄️</span>}{" "}
           {p.envio_gratis && <span className="badge gratis">ENVÍO GRATIS</span>}
         </strong>

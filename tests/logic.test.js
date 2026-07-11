@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import {
   esEnvioGratis, costoEnvio, validarPedido, validarCupon, esClienteNuevo,
   ordenarRecorrido, montoACobrar, linksGoogleMaps, calcularLiquidacion,
-  semanaPasada, gananciaRepartidor,
+  semanaPasada, gananciaRepartidor, idCorto, siguienteParada, ultimaEntregada,
+  demoraEstimada, mensajeEnCamino, linkAvisoEnCamino,
 } from "../src/logic.js";
 
 const config = {
@@ -162,6 +163,62 @@ test("liquidación mixta: neto combina los tres rubros", () => {
 test("ganancia del repartidor por pedido (total del día en el recorrido)", () => {
   assert.equal(gananciaRepartidor({ envio_gratis: true, costo_envio: 0, zona: zonas.berisso }), 6500);
   assert.equal(gananciaRepartidor({ envio_gratis: false, costo_envio: 4500, zona: zonas.hornos }), 4500);
+});
+
+test("id corto: numero_pedido serial, o últimos 5 del UUID como fallback", () => {
+  assert.equal(idCorto({ numero_pedido: 37, id: "x" }), "#37");
+  assert.equal(idCorto({ id: "123e4567-e89b-12d3-a456-9f3a4c8b1f2d" }), "#B1F2D");
+});
+
+test("siguiente parada: la primera no entregada respetando zona + refrigerados", () => {
+  const orden = ordenarRecorrido([
+    { id: "casco-frio", zona: zonas.casco, zona_id: 1, tiene_refrigerados: true, estado: "entregado", created_at: "2026-07-11T08:00:00" },
+    { id: "casco-seco", zona: zonas.casco, zona_id: 1, tiene_refrigerados: false, estado: "pendiente", created_at: "2026-07-11T09:00:00" },
+    { id: "hornos", zona: zonas.hornos, zona_id: 2, tiene_refrigerados: false, estado: "pendiente", created_at: "2026-07-11T10:00:00" },
+  ]);
+  assert.equal(siguienteParada(orden).id, "casco-seco");
+  assert.equal(ultimaEntregada(orden).id, "casco-frio");
+  // sin pendientes → null
+  assert.equal(siguienteParada(orden.map((p) => ({ ...p, estado: "entregado" }))), null);
+});
+
+test("demora estimada: misma zona 15-20, distinta zona 30-45, primera del día en minutos", () => {
+  assert.equal(demoraEstimada({ zona_id: 1 }, { zona_id: 1 }), "15 a 20 minutos");
+  assert.equal(demoraEstimada({ zona_id: 2 }, { zona_id: 1 }), "30 a 45 minutos");
+  assert.equal(demoraEstimada({ zona_id: 1 }, null), "en los próximos minutos");
+});
+
+test("mensaje en camino: estilo Nutridiet, con número de pedido y demora", () => {
+  const pedido = {
+    numero_pedido: 37, cliente_nombre: "Ana", cliente_telefono: "221 555 0000",
+    direccion: "Calle 5 N°123, La Plata", tiene_refrigerados: false,
+  };
+  const msg = mensajeEnCamino(pedido, "15 a 20 minutos");
+  assert.match(msg, /¡Hola Ana! 🌱/);
+  assert.match(msg, /pedido #37 ya está en camino a Calle 5 N°123, La Plata/);
+  assert.match(msg, /llega en unos 15 a 20 minutos/);
+  assert.match(msg, /Gracias por elegirnos! 💚/);
+  assert.ok(!msg.includes("❄️"), "sin refrigerados no menciona la conservadora");
+
+  // con refrigerados agrega la conservadora
+  const conFrio = mensajeEnCamino({ ...pedido, tiene_refrigerados: true }, "30 a 45 minutos");
+  assert.match(conFrio, /conservadora ❄️/);
+  assert.match(conFrio, /fresquitos/);
+
+  // primera del día: redacción sin "en unos"
+  assert.match(mensajeEnCamino(pedido, "en los próximos minutos"), /El repartidor llega en los próximos minutos/);
+});
+
+test("link wa.me del aviso: teléfono normalizado y texto codificado", () => {
+  const pedido = {
+    numero_pedido: 37, cliente_nombre: "Ana", cliente_telefono: "221 555-0000",
+    direccion: "Calle 5 N°123, La Plata", tiene_refrigerados: false,
+  };
+  const url = linkAvisoEnCamino(pedido, "15 a 20 minutos");
+  assert.ok(url.startsWith("https://wa.me/2215550000?text="));
+  const texto = decodeURIComponent(url.split("?text=")[1]);
+  assert.equal(texto, mensajeEnCamino(pedido, "15 a 20 minutos"));
+  assert.ok(!url.split("?text=")[1].includes(" "), "el texto va URL-encoded");
 });
 
 test("semana pasada: lunes a domingo", () => {

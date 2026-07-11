@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import {
   dinero, hoyISO, normalizarTelefono, esEnvioGratis, costoEnvio,
-  validarPedido, validarCupon, esClienteNuevo, textoConfirmacionWhatsApp,
+  validarPedido, validarCupon, esClienteNuevo, textoConfirmacionWhatsApp, idCorto,
 } from "../logic.js";
 
 const VACIO = {
@@ -123,7 +123,7 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
   if (guardado) {
     return (
       <div className="tarjeta">
-        <h2>✅ Pedido {editando ? "actualizado" : "guardado"}</h2>
+        <h2>✅ Pedido {idCorto(guardado)} {editando ? "actualizado" : "guardado"}</h2>
         <div className="linea"><span>{guardado.cliente_nombre} — {guardado.direccion}</span></div>
         <div className="linea">
           <span>Mercadería {dinero(guardado.monto_pedido)} + envío {guardado.envio_gratis ? "GRATIS" : dinero(guardado.costo_envio)}</span>

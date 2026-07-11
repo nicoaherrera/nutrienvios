@@ -92,6 +92,18 @@ button.chico { width: auto; padding: 8px 12px; font-size: 0.85rem; margin-top: 0
 .aviso.ok { background: var(--verde-claro); color: var(--verde-oscuro); border: 1px solid #c4dfc6; }
 
 .parada { border-left: 5px solid var(--verde); }
+.parada.proxima {
+  border-left-color: #25d366; border-color: #25d366;
+  box-shadow: 0 2px 12px rgba(37, 211, 102, 0.25);
+}
+.badge.proxima {
+  display: inline-block; background: #25d366; color: #fff;
+  margin-bottom: 6px; letter-spacing: 0.5px;
+}
+a.botonlink.wsp {
+  background: #25d366; color: #fff; border: none;
+  min-height: 48px; font-size: 1.05rem;
+}
 .parada.entregada { opacity: 0.55; border-left-color: var(--borde); }
 .parada .direccion { font-size: 1.05rem; font-weight: 600; margin: 2px 0; }
 .parada .referencia { color: var(--texto-suave); font-size: 0.9rem; }
