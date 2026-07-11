@@ -4,7 +4,7 @@ import {
   dinero, hoyISO, ordenarRecorrido, montoACobrar, linksGoogleMaps,
   gananciaRepartidor, nombreFormaPago, idCorto, siguienteParada,
   ultimaEntregada, demoraEstimada, linkAvisoEnCamino, envioReintento,
-  linkWhatsApp, mensajeNoTeEncontramos,
+  linkWhatsApp, mensajeNoTeEncontramos, mensajeNoEstabaReprogramado,
 } from "../logic.js";
 
 export default function Recorrido({ config }) {
@@ -129,9 +129,24 @@ export default function Recorrido({ config }) {
                   onClick={async () => {
                     const nota = window.prompt("¿Qué pasó? (queda como nota)", "No estaba");
                     if (nota === null) return;
-                    await marcar(p, { estado: "pendiente", notas: [p.notas, `${fecha}: ${nota}`].filter(Boolean).join(" | ") });
-                    if (window.confirm("¿Avisarle al cliente por WhatsApp que no lo encontramos?")) {
-                      window.open(linkWhatsApp(p.cliente_telefono, mensajeNoTeEncontramos(p)), "_blank");
+                    const tarifa = Number(p.zona?.tarifa ?? 0);
+                    const d = new Date(fecha + "T00:00:00");
+                    d.setDate(d.getDate() + 1);
+                    const manana = hoyISO(d);
+                    if (window.confirm(`¿Reprogramar para mañana sumando ${dinero(tarifa)} de revisita?\n(Cancelar = queda para que lo resuelva la tienda)`)) {
+                      await marcar(p, {
+                        estado: "pendiente",
+                        fecha_entrega: manana,
+                        pospuesto: false,
+                        envio_reintento: envioReintento(p) + tarifa,
+                        notas: [p.notas, `${fecha}: ${nota} — reprogramado a ${manana} (+${dinero(tarifa)} revisita)`].filter(Boolean).join(" | "),
+                      });
+                      window.open(linkWhatsApp(p.cliente_telefono, mensajeNoEstabaReprogramado(p, manana, tarifa)), "_blank");
+                    } else {
+                      await marcar(p, { estado: "pendiente", notas: [p.notas, `${fecha}: ${nota}`].filter(Boolean).join(" | ") });
+                      if (window.confirm("¿Avisarle al cliente por WhatsApp que no lo encontramos?")) {
+                        window.open(linkWhatsApp(p.cliente_telefono, mensajeNoTeEncontramos(p)), "_blank");
+                      }
                     }
                   }}
                 >

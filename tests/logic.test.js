@@ -6,7 +6,7 @@ import {
   ordenarRecorrido, montoACobrar, linksGoogleMaps, calcularLiquidacion,
   semanaPasada, gananciaRepartidor, idCorto, siguienteParada, ultimaEntregada,
   demoraEstimada, mensajeEnCamino, linkAvisoEnCamino, envioCobradoPorNutridiet,
-  mensajeNoTeEncontramos, mensajeReprogramado,
+  mensajeNoTeEncontramos, mensajeReprogramado, mensajeNoEstabaReprogramado,
 } from "../src/logic.js";
 
 const config = {
@@ -284,6 +284,12 @@ test("mensajes de no-encontrado y reprogramación: estilo Nutridiet con la polí
 
   const sinCargo = mensajeReprogramado(pedido, "2026-07-12", 0);
   assert.ok(!sinCargo.includes("se suma"), "sin cargo no menciona monto extra");
+
+  // el repartidor reprograma en la puerta: un solo mensaje con todo
+  const enPuerta = mensajeNoEstabaReprogramado(pedido, "2026-07-12", 3500);
+  assert.match(enPuerta, /no te encontramos/);
+  assert.match(enPuerta, /Reprogramamos la entrega para el domingo/);
+  assert.match(enPuerta, /se suma \$3\.500 del nuevo envío/);
 });
 
 test("semana pasada: lunes a domingo", () => {

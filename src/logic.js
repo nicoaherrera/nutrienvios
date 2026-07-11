@@ -249,6 +249,23 @@ export function mensajeNoTeEncontramos(pedido) {
   );
 }
 
+// Cuando el repartidor no encuentra al cliente Y reprograma en el momento:
+// un solo mensaje con todo (no encontrado + nueva fecha + cargo de revisita).
+export function mensajeNoEstabaReprogramado(pedido, fechaISO, extraRevisita) {
+  const fecha = new Date(fechaISO + "T00:00:00").toLocaleDateString("es-AR", {
+    weekday: "long", day: "numeric", month: "numeric",
+  });
+  let msg =
+    `¡Hola ${pedido.cliente_nombre}! Te escribimos de Nutridiet Market 🌱. ` +
+    `El repartidor pasó por ${pedido.direccion} con tu pedido ${idCorto(pedido)} y no te encontramos 😔. ` +
+    `Reprogramamos la entrega para el ${fecha}.`;
+  if (extraRevisita > 0) {
+    msg += ` Como conversamos al coordinar, se suma ${dinero(extraRevisita)} del nuevo envío 🙏.`;
+  }
+  msg += " Si ese día no te queda bien, escribinos. ¡Gracias! 💚";
+  return msg;
+}
+
 // Cuando la tienda reprograma para otro día (con o sin cargo de revisita).
 export function mensajeReprogramado(pedido, fechaISO, extraRevisita) {
   const fecha = new Date(fechaISO + "T00:00:00").toLocaleDateString("es-AR", {
