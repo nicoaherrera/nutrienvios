@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
-import { dinero, semanaPasada, calcularLiquidacion, resumenPorZona, metricas, nombreFormaPago, idCorto } from "../logic.js";
+import {
+  dinero, semanaPasada, calcularLiquidacion, resumenPorZona, metricas,
+  nombreFormaPago, idCorto, envioCobradoPorNutridiet, envioReintento,
+} from "../logic.js";
 
 function TablaPedidos({ pedidos, columnaMonto, valorMonto }) {
   if (!pedidos.length) return <p className="mini">Sin pedidos en este rubro.</p>;
@@ -14,7 +17,7 @@ function TablaPedidos({ pedidos, columnaMonto, valorMonto }) {
           {pedidos.map((p) => (
             <tr key={p.id}>
               <td>{p.fecha_entrega.slice(5)}</td>
-              <td><span className="mini">{idCorto(p)}</span> {p.cliente_nombre}</td>
+              <td><span className="mini">{idCorto(p)}</span> {p.cliente_nombre}{envioReintento(p) > 0 && <span className="mini"> 🔁</span>}</td>
               <td>{p.zona?.nombre}</td>
               <td>{nombreFormaPago(p.forma_pago)}</td>
               <td className="num">{dinero(valorMonto(p))}</td>
@@ -85,8 +88,8 @@ export default function Liquidacion() {
           </div>
 
           <div className="tarjeta">
-            <h3>🚚 Envíos cobrados por Nutridiet (transferencia / MP) — {dinero(liq.totalEnviosCobrados)}</h3>
-            <TablaPedidos pedidos={liq.enviosCobrados} columnaMonto="Envío" valorMonto={(p) => p.costo_envio} />
+            <h3>🚚 Envíos cobrados por Nutridiet (transferencia / MP, con revisitas) — {dinero(liq.totalEnviosCobrados)}</h3>
+            <TablaPedidos pedidos={liq.enviosCobrados} columnaMonto="Envío" valorMonto={envioCobradoPorNutridiet} />
           </div>
 
           <div className="tarjeta">

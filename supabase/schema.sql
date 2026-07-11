@@ -50,6 +50,8 @@ create table pedidos (
   forma_pago text not null check (forma_pago in ('transferencia', 'mercadopago', 'efectivo_contra_entrega')),
   pago_recibido boolean not null default false,
   estado text not null default 'pendiente' check (estado in ('pendiente', 'en_reparto', 'entregado', 'cancelado')),
+  pospuesto boolean not null default false, -- salteado dentro del día, decisión del repartidor
+  envio_reintento int not null default 0,   -- envío extra acumulado por revisitas (se cobra siempre, incluso con envío gratis)
   cupon_enviado_at timestamptz,
   notas text,
   created_at timestamptz not null default now()

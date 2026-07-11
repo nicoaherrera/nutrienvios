@@ -5,7 +5,8 @@ import {
   esEnvioGratis, costoEnvio, validarPedido, validarCupon, esClienteNuevo,
   ordenarRecorrido, montoACobrar, linksGoogleMaps, calcularLiquidacion,
   semanaPasada, gananciaRepartidor, idCorto, siguienteParada, ultimaEntregada,
-  demoraEstimada, mensajeEnCamino, linkAvisoEnCamino,
+  demoraEstimada, mensajeEnCamino, linkAvisoEnCamino, envioCobradoPorNutridiet,
+  mensajeNoTeEncontramos, mensajeReprogramado,
 } from "../src/logic.js";
 
 const config = {
@@ -219,6 +220,70 @@ test("link wa.me del aviso: teléfono normalizado y texto codificado", () => {
   const texto = decodeURIComponent(url.split("?text=")[1]);
   assert.equal(texto, mensajeEnCamino(pedido, "15 a 20 minutos"));
   assert.ok(!url.split("?text=")[1].includes(" "), "el texto va URL-encoded");
+});
+
+test("parada pospuesta por el repartidor va al final y deja de ser la próxima", () => {
+  const p = (id, zona, extra = {}) => ({
+    id, zona, zona_id: zona.id, tiene_refrigerados: false, estado: "pendiente",
+    created_at: "2026-07-11T09:00:00", pospuesto: false, ...extra,
+  });
+  const orden = ordenarRecorrido([
+    p("casco", zonas.casco, { pospuesto: true }),
+    p("hornos", zonas.hornos),
+    p("berisso", zonas.berisso),
+  ]);
+  // la del casco iría primera, pero pospuesta pasa al final
+  assert.deepEqual(orden.map((x) => x.id), ["hornos", "berisso", "casco"]);
+  assert.equal(siguienteParada(orden).id, "hornos");
+  // al retomarla vuelve a su lugar
+  const retomada = ordenarRecorrido(orden.map((x) => ({ ...x, pospuesto: false })));
+  assert.deepEqual(retomada.map((x) => x.id), ["casco", "hornos", "berisso"]);
+});
+
+test("revisita: se cobra en la puerta y la gana el repartidor", () => {
+  const pedido = {
+    estado: "entregado", forma_pago: "efectivo_contra_entrega", monto_pedido: 60000,
+    costo_envio: 3500, envio_reintento: 3500, envio_gratis: false, zona: zonas.casco,
+  };
+  assert.equal(montoACobrar(pedido), 67000); // mercadería + envío + revisita
+  assert.equal(gananciaRepartidor(pedido), 7000); // dos viajes
+  // en la liquidación el repartidor sigue debiendo solo la mercadería
+  const liq = calcularLiquidacion([pedido]);
+  assert.equal(liq.debeRepartidor, 60000);
+  assert.equal(liq.debeNutridiet, 0);
+});
+
+test("revisita en pedido con envío GRATIS pagado por MP: la revisita se cobra igual", () => {
+  const pedido = {
+    estado: "entregado", forma_pago: "mercadopago", monto_pedido: 120000,
+    costo_envio: 0, envio_reintento: 6500, envio_gratis: true, zona: zonas.berisso,
+  };
+  assert.equal(envioCobradoPorNutridiet(pedido), 6500); // solo la revisita
+  const liq = calcularLiquidacion([pedido]);
+  // tarifa del envío gratis ($6.500, la paga Nutridiet) + revisita cobrada al cliente ($6.500)
+  assert.equal(liq.totalEnviosGratis, 6500);
+  assert.equal(liq.totalEnviosCobrados, 6500);
+  assert.equal(liq.neto, 13000);
+  assert.equal(gananciaRepartidor(pedido), 13000);
+});
+
+test("mensajes de no-encontrado y reprogramación: estilo Nutridiet con la política de revisita", () => {
+  const pedido = {
+    numero_pedido: 37, cliente_nombre: "Ana", cliente_telefono: "2215550000",
+    direccion: "Calle 5 N°123, La Plata",
+  };
+  const noEstaba = mensajeNoTeEncontramos(pedido);
+  assert.match(noEstaba, /pedido #37/);
+  assert.match(noEstaba, /no te encontramos/);
+  assert.match(noEstaba, /suma de nuevo el costo de envío/);
+
+  const conCargo = mensajeReprogramado(pedido, "2026-07-12", 3500);
+  assert.match(conCargo, /Reprogramamos tu pedido #37/);
+  assert.match(conCargo, /domingo/);
+  assert.match(conCargo, /se suma \$3\.500 del nuevo envío/);
+
+  const sinCargo = mensajeReprogramado(pedido, "2026-07-12", 0);
+  assert.ok(!sinCargo.includes("se suma"), "sin cargo no menciona monto extra");
 });
 
 test("semana pasada: lunes a domingo", () => {

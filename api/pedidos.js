@@ -6,11 +6,11 @@ const CAMPOS_PEDIDO = [
   "fecha_entrega", "cliente_nombre", "cliente_telefono", "direccion", "referencia",
   "zona_id", "monto_pedido", "costo_envio", "envio_gratis", "tiene_refrigerados",
   "incluye_cooler", "cliente_nuevo", "cupon_usado", "forma_pago", "pago_recibido",
-  "estado", "notas", "cupon_enviado_at",
+  "estado", "notas", "cupon_enviado_at", "pospuesto", "envio_reintento",
 ];
 
-// El repartidor solo puede marcar entregas y pagos, nada más.
-const CAMPOS_REPARTIDOR = ["estado", "pago_recibido", "notas"];
+// El repartidor solo puede marcar entregas, pagos y posponer paradas (su decisión).
+const CAMPOS_REPARTIDOR = ["estado", "pago_recibido", "notas", "pospuesto"];
 
 function filtrar(body, permitidos) {
   return Object.fromEntries(Object.entries(body || {}).filter(([k]) => permitidos.includes(k)));

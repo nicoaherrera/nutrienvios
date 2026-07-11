@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
-import { dinero, hoyISO, nombreFormaPago, textoCuponWhatsApp, idCorto } from "../logic.js";
+import {
+  dinero, hoyISO, nombreFormaPago, textoCuponWhatsApp, idCorto,
+  envioReintento, linkWhatsApp, mensajeReprogramado,
+} from "../logic.js";
 
 const ESTADOS = ["pendiente", "en_reparto", "entregado", "cancelado"];
 
@@ -46,6 +49,31 @@ export default function Tablero({ config, navegar }) {
     }
   }
 
+  // Reprograma para mañana; con cargo suma la tarifa de zona como revisita
+  // (política: si no había nadie, la nueva visita se cobra, incluso con envío gratis).
+  async function reprogramar(p, conCargo) {
+    const extra = conCargo ? Number(p.zona?.tarifa ?? 0) : 0;
+    if (conCargo && !window.confirm(`Reprogramar para mañana sumando ${dinero(extra)} de revisita, ¿dale?`)) return;
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const manana = hoyISO(d);
+    try {
+      await api.editarPedido(p.id, {
+        fecha_entrega: manana,
+        estado: "pendiente",
+        pospuesto: false,
+        envio_reintento: envioReintento(p) + extra,
+        notas: [p.notas, `reprogramado ${hoyISO()} → ${manana}${conCargo ? ` (+${dinero(extra)} revisita)` : " sin cargo"}`].filter(Boolean).join(" | "),
+      });
+      const texto = mensajeReprogramado(p, manana, extra);
+      try { await navigator.clipboard.writeText(texto); } catch { /* el link ya lleva el texto */ }
+      window.open(linkWhatsApp(p.cliente_telefono, texto), "_blank");
+      cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   async function cuponEnviado(p) {
     try {
       await api.editarPedido(p.id, { cupon_enviado_at: new Date().toISOString() });
@@ -81,7 +109,8 @@ export default function Tablero({ config, navegar }) {
         <span className={`badge estado-${p.estado}`}>{p.estado.replace("_", " ")}</span>
       </div>
       <div className="mini">
-        📍 {p.direccion} · {p.zona?.nombre} · {dinero(p.monto_pedido)} + envío {p.envio_gratis ? "$0" : dinero(p.costo_envio)} · {nombreFormaPago(p.forma_pago)}
+        📍 {p.direccion} · {p.zona?.nombre} · {dinero(p.monto_pedido)} + envío {p.envio_gratis ? "$0" : dinero(p.costo_envio)}
+        {envioReintento(p) > 0 && <> + 🔁 revisita {dinero(envioReintento(p))}</>} · {nombreFormaPago(p.forma_pago)}
         {" · "}{p.pago_recibido ? "✅ pago recibido" : "⏳ pago pendiente"}
       </div>
       <div className="acciones" style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
@@ -90,6 +119,12 @@ export default function Tablero({ config, navegar }) {
         </select>
         {!p.pago_recibido && p.forma_pago !== "efectivo_contra_entrega" && (
           <button className="chico secundario" onClick={() => marcarPago(p)}>💰 Marcar pago recibido</button>
+        )}
+        {(p.estado === "pendiente" || p.estado === "en_reparto") && (
+          <>
+            <button className="chico secundario" onClick={() => reprogramar(p, true)}>🔁 Mañana +envío</button>
+            <button className="chico secundario" onClick={() => reprogramar(p, false)}>🔁 Mañana sin cargo</button>
+          </>
         )}
         <button className="chico secundario" onClick={() => navegar("nuevo", p.id)}>✏️ Editar</button>
       </div>

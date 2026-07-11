@@ -3,7 +3,8 @@ import { api } from "../api.js";
 import {
   dinero, hoyISO, ordenarRecorrido, montoACobrar, linksGoogleMaps,
   gananciaRepartidor, nombreFormaPago, idCorto, siguienteParada,
-  ultimaEntregada, demoraEstimada, linkAvisoEnCamino,
+  ultimaEntregada, demoraEstimada, linkAvisoEnCamino, envioReintento,
+  linkWhatsApp, mensajeNoTeEncontramos,
 } from "../logic.js";
 
 export default function Recorrido({ config }) {
@@ -72,6 +73,7 @@ export default function Recorrido({ config }) {
         return (
           <div key={p.id} className={`tarjeta parada ${entregado ? "entregada" : ""} ${esProxima ? "proxima" : ""}`}>
             {esProxima && <div className="badge proxima">▶ PRÓXIMA PARADA</div>}
+            {p.pospuesto && !entregado && <div className="badge efectivo">⏸ POSPUESTA — al final del recorrido</div>}
             <div className="linea" style={{ paddingBottom: 0 }}>
               <strong>{p.cliente_nombre} <span className="mini">{idCorto(p)}</span></strong>
               <span>
@@ -87,7 +89,13 @@ export default function Recorrido({ config }) {
             <div className="mini">{p.zona?.nombre}{p.envio_gratis ? " · envío gratis (lo paga Nutridiet)" : ` · envío ${dinero(p.costo_envio)}`}</div>
 
             {contraEntrega && !entregado && (
-              <div className="cobrar">💵 COBRAR {dinero(montoACobrar(p))} (mercadería {dinero(p.monto_pedido)} + envío {p.envio_gratis ? "$0" : dinero(p.costo_envio)})</div>
+              <div className="cobrar">
+                💵 COBRAR {dinero(montoACobrar(p))} (mercadería {dinero(p.monto_pedido)} + envío {p.envio_gratis ? "$0" : dinero(p.costo_envio)}
+                {envioReintento(p) > 0 && <> + revisita {dinero(envioReintento(p))}</>})
+              </div>
+            )}
+            {envioReintento(p) > 0 && !contraEntrega && (
+              <div className="mini">🔁 Revisita: {dinero(envioReintento(p))} de envío extra (ya cobrado por la tienda)</div>
             )}
 
             {esProxima && (
@@ -99,6 +107,11 @@ export default function Recorrido({ config }) {
             <div className="acciones">
               <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://maps.google.com/?q=${encodeURIComponent(p.direccion)}`} target="_blank" rel="noreferrer">📍 Mapa</a>
               <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://wa.me/${p.cliente_telefono.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">💬 WhatsApp</a>
+              {!entregado && (
+                <button className="chico secundario" disabled={ocupado === p.id} onClick={() => marcar(p, { pospuesto: !p.pospuesto })}>
+                  {p.pospuesto ? "↩️ Retomar" : "⏭️ Más tarde"}
+                </button>
+              )}
             </div>
 
             {!entregado ? (
@@ -113,10 +126,13 @@ export default function Recorrido({ config }) {
                 <button
                   className="peligro"
                   disabled={ocupado === p.id}
-                  onClick={() => {
+                  onClick={async () => {
                     const nota = window.prompt("¿Qué pasó? (queda como nota)", "No estaba");
                     if (nota === null) return;
-                    marcar(p, { estado: "pendiente", notas: [p.notas, `${fecha}: ${nota}`].filter(Boolean).join(" | ") });
+                    await marcar(p, { estado: "pendiente", notas: [p.notas, `${fecha}: ${nota}`].filter(Boolean).join(" | ") });
+                    if (window.confirm("¿Avisarle al cliente por WhatsApp que no lo encontramos?")) {
+                      window.open(linkWhatsApp(p.cliente_telefono, mensajeNoTeEncontramos(p)), "_blank");
+                    }
                   }}
                 >
                   No estaba ❌

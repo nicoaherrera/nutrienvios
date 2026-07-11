@@ -65,8 +65,11 @@ export function validarCupon({ pedidosPrevios, monto, config, hoy }) {
 
 // Orden del recorrido: por orden_recorrido de zona; dentro de cada zona,
 // primero las paradas con refrigerados (el frío de la conservadora es limitado).
+// Las pospuestas por el repartidor van al final del día, manteniendo su orden entre sí.
 export function ordenarRecorrido(pedidos) {
   return [...pedidos].sort((a, b) => {
+    const pospuesto = Number(Boolean(a.pospuesto)) - Number(Boolean(b.pospuesto));
+    if (pospuesto !== 0) return pospuesto;
     const zona = (a.zona?.orden_recorrido ?? 99) - (b.zona?.orden_recorrido ?? 99);
     if (zona !== 0) return zona;
     const frio = Number(b.tiene_refrigerados) - Number(a.tiene_refrigerados);
@@ -75,9 +78,14 @@ export function ordenarRecorrido(pedidos) {
   });
 }
 
+// Envío extra acumulado por revisitas (se cobra siempre, incluso con envío gratis).
+export function envioReintento(pedido) {
+  return Number(pedido.envio_reintento || 0);
+}
+
 // Lo que cobra el repartidor en la puerta si es contra entrega.
 export function montoACobrar(pedido) {
-  return Number(pedido.monto_pedido) + Number(pedido.costo_envio);
+  return Number(pedido.monto_pedido) + Number(pedido.costo_envio) + envioReintento(pedido);
 }
 
 // Links de Google Maps con las paradas en orden. Máx. 9 paradas por link;
@@ -96,26 +104,37 @@ export function linksGoogleMaps(direccionLocal, paradas) {
 }
 
 // Lo que gana el repartidor por un pedido entregado (para el total del día):
-// la tarifa de zona si fue envío gratis (la paga Nutridiet), o el costo_envio cobrado.
+// la tarifa de zona si fue envío gratis (la paga Nutridiet), o el costo_envio
+// cobrado; más el envío de las revisitas si las hubo.
 export function gananciaRepartidor(pedido) {
-  return pedido.envio_gratis ? Number(pedido.zona?.tarifa ?? 0) : Number(pedido.costo_envio);
+  const base = pedido.envio_gratis ? Number(pedido.zona?.tarifa ?? 0) : Number(pedido.costo_envio);
+  return base + envioReintento(pedido);
+}
+
+// Envío que el cliente le pagó a Nutridiet (transferencia/MP) y hay que pasarle
+// al repartidor: el envío normal (salvo gratis) más las revisitas.
+export function envioCobradoPorNutridiet(pedido) {
+  return (pedido.envio_gratis ? 0 : Number(pedido.costo_envio)) + envioReintento(pedido);
 }
 
 // Liquidación semanal. Recibe pedidos del rango; solo cuentan los ENTREGADOS.
 export function calcularLiquidacion(pedidos) {
   const entregados = pedidos.filter((p) => p.estado === "entregado");
 
-  // Envíos cobrados por Nutridiet (transferencia/MP) que hay que pasarle al repartidor
+  // Envíos cobrados por Nutridiet (transferencia/MP) que hay que pasarle al
+  // repartidor; incluye las revisitas, que se cobran incluso con envío gratis
   const enviosCobrados = entregados.filter(
-    (p) => !p.envio_gratis && (p.forma_pago === "transferencia" || p.forma_pago === "mercadopago")
+    (p) =>
+      (p.forma_pago === "transferencia" || p.forma_pago === "mercadopago") &&
+      envioCobradoPorNutridiet(p) > 0
   );
   // Envíos gratis: Nutridiet le paga la tarifa de zona completa al repartidor
   const enviosGratis = entregados.filter((p) => p.envio_gratis);
-  // Efectivo contra entrega: el repartidor cobró mercadería + envío; se queda el
-  // envío y le debe la mercadería a Nutridiet
+  // Efectivo contra entrega: el repartidor cobró mercadería + envío (+ revisitas);
+  // se queda los envíos y le debe la mercadería a Nutridiet
   const efectivo = entregados.filter((p) => p.forma_pago === "efectivo_contra_entrega");
 
-  const totalEnviosCobrados = enviosCobrados.reduce((s, p) => s + Number(p.costo_envio), 0);
+  const totalEnviosCobrados = enviosCobrados.reduce((s, p) => s + envioCobradoPorNutridiet(p), 0);
   const totalEnviosGratis = enviosGratis.reduce((s, p) => s + Number(p.zona?.tarifa ?? 0), 0);
   const debeNutridiet = totalEnviosCobrados + totalEnviosGratis;
   const debeRepartidor = efectivo.reduce((s, p) => s + Number(p.monto_pedido), 0);
@@ -211,9 +230,38 @@ export function mensajeEnCamino(pedido, demora) {
   return msg;
 }
 
+export function linkWhatsApp(telefono, texto) {
+  return `https://wa.me/${normalizarTelefono(telefono)}?text=${encodeURIComponent(texto)}`;
+}
+
 export function linkAvisoEnCamino(pedido, demora) {
-  const tel = normalizarTelefono(pedido.cliente_telefono);
-  return `https://wa.me/${tel}?text=${encodeURIComponent(mensajeEnCamino(pedido, demora))}`;
+  return linkWhatsApp(pedido.cliente_telefono, mensajeEnCamino(pedido, demora));
+}
+
+// Cuando el repartidor marca "No estaba": aviso al cliente recordando la
+// política de revisita (los clientes ya la conocen al coordinar la entrega).
+export function mensajeNoTeEncontramos(pedido) {
+  return (
+    `¡Hola ${pedido.cliente_nombre}! Te escribimos de Nutridiet Market 🌱. ` +
+    `El repartidor pasó por ${pedido.direccion} con tu pedido ${idCorto(pedido)} y no te encontramos 😔. ` +
+    `Escribinos para reprogramar la entrega. Tené en cuenta que, como conversamos al coordinar, ` +
+    `la nueva visita suma de nuevo el costo de envío 🙏. ¡Gracias!`
+  );
+}
+
+// Cuando la tienda reprograma para otro día (con o sin cargo de revisita).
+export function mensajeReprogramado(pedido, fechaISO, extraRevisita) {
+  const fecha = new Date(fechaISO + "T00:00:00").toLocaleDateString("es-AR", {
+    weekday: "long", day: "numeric", month: "numeric",
+  });
+  let msg =
+    `¡Hola ${pedido.cliente_nombre}! 🌱 Te escribimos de Nutridiet Market. ` +
+    `Reprogramamos tu pedido ${idCorto(pedido)} para el ${fecha}.`;
+  if (extraRevisita > 0) {
+    msg += ` Al total se suma ${dinero(extraRevisita)} del nuevo envío, como te habíamos avisado 🙏.`;
+  }
+  msg += " ¡Gracias por la paciencia! 💚";
+  return msg;
 }
 
 const FORMAS_PAGO = {
