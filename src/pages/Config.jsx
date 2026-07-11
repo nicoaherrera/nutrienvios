@@ -10,6 +10,7 @@ const CLAVES = [
   ["cupon_minimo", "Compra mínima del cupón ($)", "numeric"],
   ["cupon_vigencia_dias", "Vigencia del cupón (días)", "numeric"],
   ["datos_pago", "Datos de pago (van en el WhatsApp de confirmación)", "text"],
+  ["link_resena_google", "Link de reseña de Google (pedido a clientes nuevos)", "text"],
 ];
 
 export default function Config({ zonas, config, recargar }) {

@@ -29,7 +29,8 @@ insert into config (clave, valor) values
   ('cupon_descuento_pct', '10'),
   ('cupon_minimo', '30000'),
   ('cupon_vigencia_dias', '30'),
-  ('datos_pago', 'Alias: nutridiet.market (Mercado Pago)');
+  ('datos_pago', 'Alias: nutridiet.market (Mercado Pago)'),
+  ('link_resena_google', 'https://g.page/r/COMPLETAR/review');
 
 create table pedidos (
   id uuid primary key default gen_random_uuid(),
@@ -43,6 +44,7 @@ create table pedidos (
   monto_pedido int not null,
   costo_envio int not null,
   envio_gratis boolean not null default false,
+  motivo_envio_gratis text check (motivo_envio_gratis in ('monto_minimo', 'fidelizacion')), -- por qué fue gratis, para mostrarlo distinto en el Tablero
   tiene_refrigerados boolean not null default false,
   incluye_cooler boolean not null default false,
   cliente_nuevo boolean not null default false,
@@ -53,6 +55,7 @@ create table pedidos (
   pospuesto boolean not null default false, -- salteado dentro del día, decisión del repartidor
   envio_reintento int not null default 0,   -- envío extra acumulado por revisitas (se cobra siempre, incluso con envío gratis)
   cupon_enviado_at timestamptz,
+  resena_enviada_at timestamptz, -- pedido de reseña de Google (solo primera compra, aparte del cupón)
   notas text,
   created_at timestamptz not null default now()
 );

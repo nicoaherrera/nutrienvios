@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import {
-  dinero, hoyISO, normalizarTelefono, esEnvioGratis, costoEnvio,
+  dinero, hoyISO, normalizarTelefono, costoEnvio, motivoEnvioGratis, esQuintaCompra,
   validarPedido, validarCupon, esClienteNuevo, textoConfirmacionWhatsApp, idCorto,
 } from "../logic.js";
 
@@ -72,9 +72,11 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
 
   const zona = zonas.find((z) => z.id === Number(form.zona_id));
   const monto = Number(form.monto_pedido) || 0;
-  const gratis = monto > 0 && esEnvioGratis(monto, config);
-  const envio = zona && monto > 0 ? costoEnvio(monto, zona, config) : null;
+  const motivoGratis = monto > 0 ? motivoEnvioGratis(monto, config, previos) : null;
+  const gratis = Boolean(motivoGratis);
+  const envio = zona && monto > 0 ? costoEnvio(monto, zona, config, previos) : null;
   const clienteNuevo = previos !== null && esClienteNuevo(previos);
+  const quintaCompra = previos !== null && esQuintaCompra(previos);
 
   const errores = useMemo(
     () => (zona && monto > 0 ? validarPedido({ monto, zona, tieneRefrigerados: form.tiene_refrigerados }) : []),
@@ -106,6 +108,7 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
         monto_pedido: monto,
         costo_envio: envio,
         envio_gratis: gratis,
+        motivo_envio_gratis: motivoGratis,
         cupon_usado: form.cupon_usado.trim() || null,
         referencia: form.referencia.trim() || null,
         notas: form.notas.trim() || null,
@@ -153,7 +156,10 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
       <label>Cliente</label>
       <input value={form.cliente_nombre} onChange={campo("cliente_nombre")} placeholder="Nombre y apellido" />
 
-      <label>Teléfono {clienteNuevo && <span className="badge nuevo">CLIENTE NUEVO</span>}</label>
+      <label>
+        Teléfono {clienteNuevo && <span className="badge nuevo">CLIENTE NUEVO</span>}
+        {!clienteNuevo && quintaCompra && <span className="badge gratis">🎉 LE TOCA ENVÍO GRATIS (5ta compra)</span>}
+      </label>
       <input value={form.cliente_telefono} onChange={campo("cliente_telefono")} inputMode="tel" placeholder="221 555 0000" />
 
       <label>Dirección (siempre con localidad)</label>
@@ -182,7 +188,9 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
 
       {envio !== null && (
         <div className={`aviso ${gratis ? "ok" : ""}`} style={!gratis ? { background: "var(--verde-claro)", border: "1px solid #c4dfc6" } : undefined}>
-          🚚 Envío: {gratis ? <strong>GRATIS 🎉 (pedido ≥ {dinero(config.umbral_envio_gratis)})</strong> : <strong>{dinero(envio)}</strong>}
+          🚚 Envío: {gratis ? (
+            <strong>GRATIS 🎉 ({motivoGratis === "fidelizacion" ? "5ta compra" : `pedido ≥ ${dinero(config.umbral_envio_gratis)}`})</strong>
+          ) : <strong>{dinero(envio)}</strong>}
           {" · "}Total cliente: <strong>{dinero(monto + envio)}</strong>
         </div>
       )}

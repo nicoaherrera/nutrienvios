@@ -32,4 +32,5 @@ export const api = {
   pedidoPorId: (id) => req(`/api/pedidos?id=${id}`).then((r) => r[0]),
   crearPedido: (pedido) => req("/api/pedidos", { method: "POST", body: pedido }),
   editarPedido: (id, cambios) => req(`/api/pedidos?id=${id}`, { method: "PATCH", body: cambios }),
+  clientes: () => req("/api/clientes"),
 };

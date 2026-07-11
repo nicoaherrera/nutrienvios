@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
 import {
-  dinero, hoyISO, nombreFormaPago, textoCuponWhatsApp, idCorto,
+  dinero, hoyISO, nombreFormaPago, textoCuponWhatsApp, textoResenaWhatsApp, idCorto,
   envioReintento, linkWhatsApp, mensajeReprogramado,
 } from "../logic.js";
 
@@ -83,11 +83,21 @@ export default function Tablero({ config, navegar }) {
     }
   }
 
+  async function resenaEnviada(p) {
+    try {
+      await api.editarPedido(p.id, { resena_enviada_at: new Date().toISOString() });
+      cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   if (error) return <div className="aviso error">{error} <button className="chico secundario" onClick={cargar}>Reintentar</button></div>;
   if (!pedidos) return <div className="vacio">Cargando…</div>;
 
   const hoy = hoyISO();
   const recordatorios = pedidos.filter((p) => p.estado === "entregado" && p.cliente_nuevo && !p.cupon_enviado_at);
+  const recordatoriosResena = pedidos.filter((p) => p.estado === "entregado" && p.cliente_nuevo && !p.resena_enviada_at);
   const atrasados = pedidos.filter((p) => p.fecha_entrega < hoy && (p.estado === "pendiente" || p.estado === "en_reparto"));
   const proximos = pedidos.filter((p) => p.fecha_entrega >= hoy && p.estado !== "cancelado");
 
@@ -104,7 +114,9 @@ export default function Tablero({ config, navegar }) {
         <strong>
           <span className="mini">{idCorto(p)}</span> {p.cliente_nombre} {p.cliente_nuevo && <span className="badge nuevo">NUEVO</span>}{" "}
           {p.tiene_refrigerados && <span className="badge frio">❄️</span>}{" "}
-          {p.envio_gratis && <span className="badge gratis">ENVÍO GRATIS</span>}
+          {p.envio_gratis && (
+            <span className="badge gratis">{p.motivo_envio_gratis === "fidelizacion" ? "🎉 5TA COMPRA GRATIS" : "ENVÍO GRATIS"}</span>
+          )}
         </strong>
         <span className={`badge estado-${p.estado}`}>{p.estado.replace("_", " ")}</span>
       </div>
@@ -151,6 +163,30 @@ export default function Tablero({ config, navegar }) {
                   📋 Copiar y abrir WhatsApp
                 </button>
                 <button className="chico secundario" onClick={() => cuponEnviado(p)}>✅ Enviado</button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {recordatoriosResena.length > 0 && (
+        <div className="tarjeta" style={{ borderColor: "var(--verde)", background: "var(--verde-claro)" }}>
+          <h3 style={{ marginTop: 0 }}>⭐ Reseñas por pedir ({recordatoriosResena.length})</h3>
+          {recordatoriosResena.map((p) => (
+            <div key={p.id} className="linea" style={{ flexWrap: "wrap" }}>
+              <span><strong>{p.cliente_nombre}</strong> — entregado el {p.fecha_entrega.slice(5)}</span>
+              <span style={{ display: "flex", gap: 6 }}>
+                <button
+                  className="chico primario"
+                  onClick={async () => {
+                    const texto = textoResenaWhatsApp(p.cliente_nombre, config);
+                    try { await navigator.clipboard.writeText(texto); } catch { window.prompt("Copiá el mensaje:", texto); }
+                    window.open(`https://wa.me/${p.cliente_telefono}`, "_blank");
+                  }}
+                >
+                  📋 Copiar y abrir WhatsApp
+                </button>
+                <button className="chico secundario" onClick={() => resenaEnviada(p)}>✅ Enviado</button>
               </span>
             </div>
           ))}

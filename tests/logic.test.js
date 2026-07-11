@@ -7,6 +7,8 @@ import {
   semanaPasada, gananciaRepartidor, idCorto, siguienteParada, ultimaEntregada,
   demoraEstimada, mensajeEnCamino, linkAvisoEnCamino, envioCobradoPorNutridiet,
   mensajeNoTeEncontramos, mensajeReprogramado, mensajeNoEstabaReprogramado,
+  esQuintaCompra, motivoEnvioGratis, agregarClientes, mensajeReactivacion, linkReactivacion,
+  textoResenaWhatsApp,
 } from "../src/logic.js";
 
 const config = {
@@ -297,4 +299,56 @@ test("semana pasada: lunes a domingo", () => {
   const { desde, hasta } = semanaPasada(new Date("2026-07-08T12:00:00"));
   assert.equal(desde, "2026-06-29");
   assert.equal(hasta, "2026-07-05");
+});
+
+test("envío gratis por fidelización: la 5ta, 10ma... entrega es gratis, sin importar el monto", () => {
+  const cuatroEntregas = Array.from({ length: 4 }, () => ({ estado: "entregado" }));
+  assert.equal(esQuintaCompra(cuatroEntregas), true); // esta sería la 5ta
+  assert.equal(esQuintaCompra([...cuatroEntregas, { estado: "cancelado" }]), true); // cancelados no cuentan
+  assert.equal(esQuintaCompra(Array.from({ length: 3 }, () => ({ estado: "entregado" }))), false);
+  assert.equal(esQuintaCompra(Array.from({ length: 9 }, () => ({ estado: "entregado" }))), true); // sería la 10ma
+
+  assert.equal(motivoEnvioGratis(20000, config, cuatroEntregas), "fidelizacion");
+  assert.equal(motivoEnvioGratis(120000, config, []), "monto_minimo"); // el monto prevalece si aplican los dos
+  assert.equal(motivoEnvioGratis(20000, config, []), null);
+  assert.equal(costoEnvio(20000, zonas.casco, config, cuatroEntregas), 0);
+  assert.equal(costoEnvio(20000, zonas.casco, config, Array.from({ length: 3 }, () => ({ estado: "entregado" }))), 3500);
+});
+
+test("clientes: agrupa por teléfono con compras, gasto total y días desde la última entrega", () => {
+  const pedidos = [
+    { cliente_telefono: "221111", cliente_nombre: "Ana", estado: "entregado", monto_pedido: 30000, fecha_entrega: "2026-06-01" },
+    { cliente_telefono: "221111", cliente_nombre: "Ana", estado: "entregado", monto_pedido: 50000, fecha_entrega: "2026-06-20" },
+    { cliente_telefono: "221111", cliente_nombre: "Ana", estado: "cancelado", monto_pedido: 99999, fecha_entrega: "2026-07-05" },
+    { cliente_telefono: "222222", cliente_nombre: "Beto", estado: "entregado", monto_pedido: 40000, fecha_entrega: "2026-07-07" },
+  ];
+  const clientes = agregarClientes(pedidos, "2026-07-08");
+  assert.equal(clientes.length, 2);
+  // Ana: más días sin pedir (desde 20/6), va primero
+  assert.equal(clientes[0].telefono, "221111");
+  assert.equal(clientes[0].compras, 2); // el cancelado no cuenta
+  assert.equal(clientes[0].gastoTotal, 80000);
+  assert.equal(clientes[0].ultimaEntrega, "2026-06-20");
+  assert.equal(clientes[0].diasSinPedir, 18);
+  // Beto: pidió ayer
+  assert.equal(clientes[1].telefono, "222222");
+  assert.equal(clientes[1].diasSinPedir, 1);
+});
+
+test("pedido de reseña: mensaje aparte del cupón, con el link de Google configurado", () => {
+  const msg = textoResenaWhatsApp("Ana", { ...config, link_resena_google: "https://g.page/r/xyz/review" });
+  assert.match(msg, /¡Hola Ana! 🌱/);
+  assert.match(msg, /primera compra/);
+  assert.match(msg, /https:\/\/g\.page\/r\/xyz\/review/);
+  assert.ok(!msg.toLowerCase().includes("cupón"), "no debe mezclarse con el cupón de bienvenida");
+});
+
+test("mensaje de reactivación: menciona los días sin pedir y arma el link de WhatsApp", () => {
+  const cliente = { telefono: "221 555-0000", nombre: "Ana", diasSinPedir: 35 };
+  const msg = mensajeReactivacion(cliente);
+  assert.match(msg, /¡Hola Ana! 🌱/);
+  assert.match(msg, /Hace 35 días que no te vemos/);
+  const url = linkReactivacion(cliente);
+  assert.ok(url.startsWith("https://wa.me/2215550000?text="));
+  assert.equal(decodeURIComponent(url.split("?text=")[1]), msg);
 });

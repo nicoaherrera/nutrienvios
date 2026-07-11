@@ -4,6 +4,7 @@ import Tablero from "./pages/Tablero.jsx";
 import NuevoPedido from "./pages/NuevoPedido.jsx";
 import Recorrido from "./pages/Recorrido.jsx";
 import Liquidacion from "./pages/Liquidacion.jsx";
+import Clientes from "./pages/Clientes.jsx";
 import Config from "./pages/Config.jsx";
 
 // Rutas privadas por token en la URL (auth real queda para v2):
@@ -19,6 +20,7 @@ const TABS_TIENDA = [
   ["tablero", "📋 Tablero"],
   ["nuevo", "➕ Nuevo pedido"],
   ["liquidacion", "💰 Liquidación"],
+  ["clientes", "👥 Clientes"],
   ["config", "⚙️ Config"],
 ];
 
@@ -98,6 +100,7 @@ export default function App() {
           <NuevoPedido key={ruta.extra || "nuevo"} zonas={zonas} config={config} pedidoId={ruta.extra} navegar={navegar} />
         )}
         {vista === "liquidacion" && <Liquidacion zonas={zonas} config={config} />}
+        {vista === "clientes" && <Clientes />}
         {vista === "config" && <Config zonas={zonas} config={config} recargar={cargarBase} />}
       </>
     );

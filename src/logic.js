@@ -19,8 +19,23 @@ export function esEnvioGratis(montoPedido, config) {
   return Number(montoPedido) >= Number(config.umbral_envio_gratis);
 }
 
-export function costoEnvio(montoPedido, zona, config) {
-  return esEnvioGratis(montoPedido, config) ? 0 : Number(zona.tarifa);
+// Fidelización: la compra que hace que el cliente llegue a un múltiplo de 5
+// entregas (contando esta) viaja gratis. Cuenta solo entregas, no cancelados/pendientes.
+export function esQuintaCompra(pedidosPrevios) {
+  const entregados = (pedidosPrevios || []).filter((p) => p.estado === "entregado").length;
+  return (entregados + 1) % 5 === 0;
+}
+
+// Motivo del envío gratis (para mostrarlo distinto en la UI): por monto mínimo
+// o por fidelización. null si no aplica ninguno.
+export function motivoEnvioGratis(montoPedido, config, pedidosPrevios) {
+  if (esEnvioGratis(montoPedido, config)) return "monto_minimo";
+  if (esQuintaCompra(pedidosPrevios)) return "fidelizacion";
+  return null;
+}
+
+export function costoEnvio(montoPedido, zona, config, pedidosPrevios) {
+  return motivoEnvioGratis(montoPedido, config, pedidosPrevios) ? 0 : Number(zona.tarifa);
 }
 
 // Validaciones al cargar/editar un pedido.
@@ -307,6 +322,55 @@ export function textoConfirmacionWhatsApp(pedido, zona, config) {
     `Si hay alguna referencia para encontrar la casa (timbre, color de rejas, etc.), ¡avisanos así el repartidor no se pierde!`,
   ];
   return lineas.join("\n");
+}
+
+// Vista de Clientes: agrupa pedidos ENTREGADOS por teléfono → nombre más
+// reciente, cantidad de compras, gasto total y días desde la última entrega.
+// Ordenado por más días sin pedir primero (para priorizar a quién reactivar).
+export function agregarClientes(pedidos, hoy = hoyISO()) {
+  const mapa = new Map();
+  for (const p of pedidos) {
+    if (p.estado !== "entregado") continue;
+    const tel = p.cliente_telefono;
+    const item = mapa.get(tel) || { telefono: tel, nombre: p.cliente_nombre, compras: 0, gastoTotal: 0, ultimaEntrega: null };
+    item.compras += 1;
+    item.gastoTotal += Number(p.monto_pedido);
+    if (!item.ultimaEntrega || p.fecha_entrega > item.ultimaEntrega) {
+      item.ultimaEntrega = p.fecha_entrega;
+      item.nombre = p.cliente_nombre;
+    }
+    mapa.set(tel, item);
+  }
+  const hoyDate = new Date(hoy + "T00:00:00");
+  return [...mapa.values()]
+    .map((c) => ({ ...c, diasSinPedir: Math.round((hoyDate - new Date(c.ultimaEntrega + "T00:00:00")) / 86400000) }))
+    .sort((a, b) => b.diasSinPedir - a.diasSinPedir);
+}
+
+export function mensajeReactivacion(cliente) {
+  return (
+    `¡Hola ${cliente.nombre}! 🌱 Te escribimos de Nutridiet Market. ` +
+    `Hace ${cliente.diasSinPedir} días que no te vemos por acá y te extrañamos 💚. ` +
+    `¿Te copamos con un pedido esta semana? Escribinos y coordinamos todo.`
+  );
+}
+
+export function linkReactivacion(cliente) {
+  return linkWhatsApp(cliente.telefono, mensajeReactivacion(cliente));
+}
+
+// Pedido de reseña de Google tras la primera compra entregada. Flujo aparte
+// del cupón de bienvenida (no se ofrece a cambio de la reseña, va contra las
+// políticas de Google) — la tienda lo manda cuando le parece, sin condicionarlo.
+export function textoResenaWhatsApp(nombre, config) {
+  return [
+    `¡Hola ${nombre}! 🌱 Gracias por elegir Nutridiet Market en tu primera compra 💚`,
+    ``,
+    `¿Nos regalás dos minutos para dejarnos una reseña? Nos ayuda un montón a seguir creciendo 🙏`,
+    config.link_resena_google,
+    ``,
+    `¡Gracias! 🥗`,
+  ].join("\n");
 }
 
 export function textoCuponWhatsApp(nombre, config) {
