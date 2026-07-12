@@ -127,7 +127,7 @@ export default function Recorrido({ config }) {
             )}
 
             <div className="acciones">
-              <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://maps.google.com/?q=${encodeURIComponent(direccionParaMapa(p.direccion, p.zona, p.entre_calles))}`} target="_blank" rel="noreferrer">📍 Mapa</a>
+              <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://maps.google.com/?q=${encodeURIComponent(direccionParaMapa(p.direccion, p.zona, p.localidad))}`} target="_blank" rel="noreferrer">📍 Mapa</a>
               <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://wa.me/${p.cliente_telefono.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">💬 WhatsApp</a>
               {!entregado && (
                 <button className="chico secundario" disabled={ocupado === p.id} onClick={() => marcar(p, { pospuesto: !p.pospuesto })}>

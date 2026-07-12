@@ -139,16 +139,20 @@ test("link de Google Maps: origen + paradas en orden, máx. 9 por link, con loca
 
 test("dirección para Maps: usa la localidad de la zona del pedido, no siempre La Plata", () => {
   // sin localidad en el texto: usa la de la zona (ej. "29 n234" en Casco urbano mandaba a España)
-  assert.equal(direccionParaMapa("29 n234", zonas.casco), "Calle 29 N° 234, La Plata, Argentina");
+  assert.equal(direccionParaMapa("29 n234", zonas.casco), "Calle 29 234, La Plata, Argentina");
   assert.equal(direccionParaMapa("Montevideo 456", zonas.berisso), "Montevideo 456, Berisso, Argentina");
-  assert.equal(direccionParaMapa("Calle 10", zonas.citybell), "Calle 10, La Plata, Argentina");
+  assert.equal(direccionParaMapa("Calle 10", zonas.citybell), "Calle 10, City Bell, Argentina");
   // sin zona (no debería pasar en la práctica): cae a La Plata por defecto
-  assert.equal(direccionParaMapa("29 n234"), "Calle 29 N° 234, La Plata, Argentina");
+  assert.equal(direccionParaMapa("29 n234"), "Calle 29 234, La Plata, Argentina");
   // si el texto ya menciona una localidad, no la duplica ni fuerza la de la zona
   assert.equal(direccionParaMapa("Montevideo 456, Ensenada", zonas.berisso), "Montevideo 456, Ensenada, Argentina");
   assert.equal(direccionParaMapa("Calle 5, La Plata", zonas.casco), "Calle 5, La Plata, Argentina");
-  // con "entre calles" cargado, es la pista más confiable para geocodificar
-  assert.equal(direccionParaMapa("29 n234", zonas.casco, "15 y 16"), "Calle 29 N° 234 entre 15 y 16, La Plata, Argentina");
+  // la localidad elegida en el pedido manda sobre el default de la zona
+  // (las calles numeradas se repiten entre casco, Los Hornos, Tolosa…)
+  assert.equal(direccionParaMapa("Calle 137 N° 60", zonas.hornos, "Los Hornos"), "Calle 137 60, Los Hornos, Argentina");
+  assert.equal(direccionParaMapa("Montevideo 456", zonas.berisso, "Punta Lara"), "Montevideo 456, Punta Lara, Argentina");
+  // sin localidad elegida: cae al primer barrio de la zona
+  assert.equal(direccionParaMapa("Calle 137 N° 60", zonas.hornos), "Calle 137 60, Los Hornos, Argentina");
 });
 
 test("componer/separar dirección: Calle + Número en dos campos del form, ida y vuelta", () => {
@@ -176,14 +180,17 @@ test("componer/separar nombre completo: Nombre + Apellido en dos campos, siempre
   assert.deepEqual(separarNombreCompleto(""), { nombre: "", apellido: "" });
 });
 
-test("dirección para Maps: expande la numeración pegada de La Plata (\"9 n136\") a formato que Google resuelve bien", () => {
-  // el bug real: dos direcciones distintas sin expandir geocodificaban al mismo punto
-  assert.equal(direccionParaMapa("9 n136", zonas.casco), "Calle 9 N° 136, La Plata, Argentina");
-  assert.equal(direccionParaMapa("16 n136", zonas.casco), "Calle 16 N° 136, La Plata, Argentina");
-  assert.equal(direccionParaMapa("29 n400", zonas.casco, "38 y 39"), "Calle 29 N° 400 entre 38 y 39, La Plata, Argentina");
-  // formatos que ya vienen bien no se tocan
+test("dirección para Maps: normaliza al formato pelado que Google resuelve (\"Calle 29 234\", sin N° ni entre)", () => {
+  // el bug real: dos direcciones distintas sin normalizar geocodificaban al mismo punto
+  assert.equal(direccionParaMapa("9 n136", zonas.casco), "Calle 9 136, La Plata, Argentina");
+  assert.equal(direccionParaMapa("16 n136", zonas.casco), "Calle 16 136, La Plata, Argentina");
+  // lo guardado con el formato nuevo del form ("Calle 29 N° 234"): se le quita el N° para Google
+  // (Maps mostró "no encuentra Calle 29 N° 234 entre 36 y 37" pero sí resuelve "C. 29 400")
+  assert.equal(direccionParaMapa("Calle 29 N° 234", zonas.casco), "Calle 29 234, La Plata, Argentina");
+  // el "entre calles" nunca viaja al geocoder: queda solo para el repartidor en la tarjeta
+  assert.equal(direccionParaMapa("Calle 29 N° 400", zonas.casco), "Calle 29 400, La Plata, Argentina");
+  // calle con nombre no se toca
   assert.equal(direccionParaMapa("Montevideo 456, Berisso", zonas.berisso), "Montevideo 456, Berisso, Argentina");
-  assert.equal(direccionParaMapa("Calle 29 N° 234", zonas.casco), "Calle 29 N° 234, La Plata, Argentina");
 });
 
 test("confirmación por WhatsApp: menciona el entre calles cuando está cargado", () => {

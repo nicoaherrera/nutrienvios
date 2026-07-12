@@ -39,7 +39,8 @@ create table pedidos (
   cliente_nombre text not null,
   cliente_telefono text not null,
   direccion text not null,
-  entre_calles text, -- "15 y 16" — clave para que Maps geolocalice bien, lo pedimos igual que en el WhatsApp Business
+  entre_calles text, -- "15 y 16" — para el repartidor (no va a Google: rompe el geocoder)
+  localidad text, -- barrio/localidad dentro de la zona ("Los Hornos", "City Bell") — desambigua las calles numeradas repetidas para Maps
   referencia text,
   zona_id int not null references zonas(id),
   monto_pedido int not null,

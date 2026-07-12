@@ -4,6 +4,7 @@ import {
   dinero, hoyISO, normalizarTelefono, costoEnvio, motivoEnvioGratis, esQuintaCompra,
   validarPedido, validarCupon, esClienteNuevo, textoConfirmacionWhatsApp, idCorto,
   componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
+  BARRIOS_POR_ZONA,
 } from "../logic.js";
 
 const VACIO = {
@@ -13,6 +14,7 @@ const VACIO = {
   calle: "",
   numero: "",
   entre_calles: "",
+  localidad: "",
   referencia: "",
   zona_id: "",
   monto_pedido: "",
@@ -56,6 +58,7 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
         ...separarDireccion(p.direccion),
         referencia: p.referencia || "",
         entre_calles: p.entre_calles || "",
+        localidad: p.localidad || "",
         cupon_usado: p.cupon_usado || "",
         notas: p.notas || "",
         zona_id: String(p.zona_id),
@@ -126,6 +129,7 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
         cupon_usado: form.cupon_usado.trim() || null,
         referencia: form.referencia.trim() || null,
         entre_calles: form.entre_calles.trim() || null,
+        localidad: form.localidad || null,
         notas: form.notas.trim() || null,
       };
       if (!editando) body.cliente_nuevo = clienteNuevo;
@@ -206,7 +210,13 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
       <div className="fila">
         <div>
           <label>Zona</label>
-          <select value={form.zona_id} onChange={campo("zona_id")}>
+          <select
+            value={form.zona_id}
+            onChange={(e) => {
+              const zonaId = e.target.value;
+              setForm((f) => ({ ...f, zona_id: zonaId, localidad: BARRIOS_POR_ZONA[Number(zonaId)]?.[0] || "" }));
+            }}
+          >
             <option value="">Elegir zona…</option>
             {zonas.map((z) => (
               <option key={z.id} value={z.id}>{z.nombre} — {dinero(z.tarifa)}</option>
@@ -214,10 +224,18 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
           </select>
         </div>
         <div>
-          <label>Monto mercadería {form.cupon_usado ? "(con descuento ya aplicado)" : ""}</label>
-          <input value={form.monto_pedido} onChange={campo("monto_pedido")} inputMode="numeric" placeholder="60000" />
+          <label>Barrio / localidad</label>
+          <select value={form.localidad} onChange={campo("localidad")} disabled={!zona}>
+            {!zona && <option value="">Elegí la zona primero…</option>}
+            {(BARRIOS_POR_ZONA[Number(form.zona_id)] || []).map((b) => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
         </div>
       </div>
+
+      <label>Monto mercadería {form.cupon_usado ? "(con descuento ya aplicado)" : ""}</label>
+      <input value={form.monto_pedido} onChange={campo("monto_pedido")} inputMode="numeric" placeholder="60000" />
 
       {zona && <p className="mini">📅 {zona.nombre}: {zona.dias_entrega}{zona.minimo_compra ? ` · mínimo ${dinero(zona.minimo_compra)}` : ""}</p>}
 

@@ -140,40 +140,39 @@ export function separarNombreCompleto(nombreCompleto) {
   return { nombre: partes[0], apellido: partes.slice(1).join(" ") };
 }
 
-// Localidad de referencia por zona (la partido/localidad real, no el nombre
-// comercial de la zona) — para geocodificar bien en Maps cuando la dirección
-// se cargó sin localidad (ej. "29 n234"). Basado en la zona ya seleccionada
-// del pedido, no en adivinar por texto libre.
-const LOCALIDAD_POR_ZONA = {
-  1: "La Plata", // Casco urbano
-  2: "La Plata", // Los Hornos / Tolosa / Ringuelet (barrios de La Plata)
-  3: "La Plata", // City Bell / Gonnet (dentro del partido de La Plata)
-  4: "Berisso",  // Berisso / Ensenada / Punta Lara
+// Barrios/localidades que abarca cada zona. El formulario ofrece estas
+// opciones al elegir la zona, y la elegida viaja al geocoder: las calles
+// numeradas se repiten entre el casco, Los Hornos, Tolosa, etc., así que
+// "La Plata" a secas puede geocodificar en el barrio equivocado.
+export const BARRIOS_POR_ZONA = {
+  1: ["La Plata"],                             // Casco urbano
+  2: ["Los Hornos", "Tolosa", "Ringuelet"],    // partido de La Plata
+  3: ["City Bell", "Gonnet"],                  // partido de La Plata
+  4: ["Berisso", "Ensenada", "Punta Lara"],
 };
 
-// La calle numerada de La Plata se carga muchas veces pegada y abreviada
-// ("29 n234"), y ese formato confunde el geocoder de Google (llegó a mandar
-// dos pedidos distintos al mismo punto, o a España). "Calle 29 N° 234" es el
-// formato que Google sí resuelve bien en el trazado de La Plata.
-function expandirNumeracion(direccion) {
-  const m = direccion.match(/^(\d{1,3})\s*n\.?°?\s*(\d{1,5})\b(.*)$/i);
-  return m ? `Calle ${m[1]} N° ${m[2]}${m[3]}` : direccion;
+// Formato que el geocoder de Google resuelve bien en La Plata: "Calle 29 234"
+// pelado — sin "N°" y sin "entre X e Y" (probado en Maps: las direcciones que
+// resuelve las muestra como "C. 29 400"; con "N° ... entre ..." tira "no
+// encuentra"). Acepta lo guardado viejo ("29 n234") y lo nuevo ("Calle 29 N° 234").
+function normalizarParaGeocoder(direccion) {
+  const m = direccion.match(/^(?:calle\s+)?(\d{1,3})\s*n[°.]?\s*(\d{1,5})\b(.*)$/i);
+  return m ? `Calle ${m[1]} ${m[2]}${m[3]}` : direccion;
 }
 
 // Las direcciones se cargan sin localidad muchas veces, y sin ese contexto
 // Google puede geocodificar en cualquier parte del mundo (ej. terminó en
 // España). Le agregamos localidad/país para la búsqueda en Maps —no toca la
-// dirección que ve el cliente. Si el texto ya menciona una localidad conocida,
-// no la duplicamos; si no, usamos la de la zona del pedido. El "entre calles"
-// (si se cargó) es la pista más confiable para geocodificar bien en Argentina.
-export function direccionParaMapa(direccion, zona, entreCalles) {
-  const expandida = expandirNumeracion(direccion);
-  const conEntreCalles = entreCalles ? `${expandida} entre ${entreCalles}` : expandida;
+// dirección que ve el cliente ni el repartidor. El "entre calles" NO va al
+// geocoder (lo rompe); queda visible en la tarjeta para el repartidor.
+// Prioridad de localidad: la elegida en el pedido > la primera de la zona.
+export function direccionParaMapa(direccion, zona, localidad) {
+  const normalizada = normalizarParaGeocoder(direccion);
   if (/la plata|berisso|ensenada|punta lara|city bell|gonnet|tolosa|ringuelet|hornos/i.test(direccion)) {
-    return `${conEntreCalles}, Argentina`;
+    return `${normalizada}, Argentina`;
   }
-  const localidad = LOCALIDAD_POR_ZONA[zona?.id] || "La Plata";
-  return `${conEntreCalles}, ${localidad}, Argentina`;
+  const loc = localidad || BARRIOS_POR_ZONA[zona?.id]?.[0] || "La Plata";
+  return `${normalizada}, ${loc}, Argentina`;
 }
 
 // Links de Google Maps con las paradas en orden. Máx. 9 paradas por link;
@@ -184,7 +183,7 @@ export function linksGoogleMaps(direccionLocal, paradas) {
   let origen = direccionLocal;
   for (let i = 0; i < paradas.length; i += 9) {
     const tramo = paradas.slice(i, i + 9);
-    const geocodificadas = tramo.map((p) => direccionParaMapa(p.direccion, p.zona, p.entre_calles));
+    const geocodificadas = tramo.map((p) => direccionParaMapa(p.direccion, p.zona, p.localidad));
     const puntos = [origen, ...geocodificadas];
     links.push("https://www.google.com/maps/dir/" + puntos.map(encodeURIComponent).join("/"));
     origen = geocodificadas[geocodificadas.length - 1];
