@@ -8,7 +8,7 @@ import {
   demoraEstimada, mensajeEnCamino, linkAvisoEnCamino, envioCobradoPorNutridiet,
   mensajeNoTeEncontramos, mensajeReprogramado, mensajeNoEstabaReprogramado,
   esQuintaCompra, motivoEnvioGratis, agregarClientes, mensajeReactivacion, linkReactivacion,
-  textoResenaWhatsApp,
+  textoResenaWhatsApp, liquidacionCSV,
 } from "../src/logic.js";
 
 const config = {
@@ -341,6 +341,27 @@ test("pedido de reseña: mensaje aparte del cupón, con el link de Google config
   assert.match(msg, /primera compra/);
   assert.match(msg, /https:\/\/g\.page\/r\/xyz\/review/);
   assert.ok(!msg.toLowerCase().includes("cupón"), "no debe mezclarse con el cupón de bienvenida");
+});
+
+test("CSV de liquidación: una fila por entregado, con envío gratis por fidelización y comas escapadas", () => {
+  const pedidos = [
+    {
+      numero_pedido: 12, fecha_entrega: "2026-07-06", cliente_nombre: "Ana, la de siempre",
+      zona: zonas.casco, forma_pago: "efectivo_contra_entrega", monto_pedido: 60000,
+      costo_envio: 3500, envio_gratis: false, envio_reintento: 0,
+    },
+    {
+      numero_pedido: 13, fecha_entrega: "2026-07-07", cliente_nombre: "Beto",
+      zona: zonas.berisso, forma_pago: "mercadopago", monto_pedido: 20000,
+      costo_envio: 0, envio_gratis: true, motivo_envio_gratis: "fidelizacion", envio_reintento: 0,
+    },
+  ];
+  const csv = liquidacionCSV(pedidos);
+  const filas = csv.split("\n");
+  assert.equal(filas.length, 3); // encabezado + 2 pedidos
+  assert.match(filas[0], /^Fecha,Pedido,Cliente,Zona/);
+  assert.match(filas[1], /"Ana, la de siempre"/); // la coma en el nombre queda escapada entre comillas
+  assert.match(filas[2], /#13,Beto,Berisso.*5ta compra.*6500$/); // ganancia del repartidor: tarifa de zona por el envío gratis
 });
 
 test("mensaje de reactivación: menciona los días sin pedir y arma el link de WhatsApp", () => {

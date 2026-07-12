@@ -2,8 +2,19 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
 import {
   dinero, semanaPasada, calcularLiquidacion, resumenPorZona, metricas,
-  nombreFormaPago, idCorto, envioCobradoPorNutridiet, envioReintento,
+  nombreFormaPago, idCorto, envioCobradoPorNutridiet, envioReintento, liquidacionCSV,
 } from "../logic.js";
+
+function descargarCSV(entregados, rango) {
+  const csv = liquidacionCSV(entregados);
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `liquidacion_${rango.desde}_a_${rango.hasta}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 function TablaPedidos({ pedidos, columnaMonto, valorMonto }) {
   if (!pedidos.length) return <p className="mini">Sin pedidos en este rubro.</p>;
@@ -69,6 +80,12 @@ export default function Liquidacion() {
         <div className="vacio">Calculando…</div>
       ) : (
         <>
+          {liq.entregados.length > 0 && (
+            <button className="secundario" style={{ width: "auto" }} onClick={() => descargarCSV(liq.entregados, rango)}>
+              ⬇️ Exportar CSV
+            </button>
+          )}
+
           <div className="tarjeta" style={{ textAlign: "center" }}>
             <div className="mini">NETO DE LA SEMANA</div>
             <div className={`neto ${liq.neto >= 0 ? "positivo" : "negativo"}`}>{dinero(Math.abs(liq.neto))}</div>

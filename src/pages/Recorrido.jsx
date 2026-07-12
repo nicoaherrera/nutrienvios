@@ -154,7 +154,19 @@ export default function Recorrido({ config }) {
                 </button>
               </div>
             ) : (
-              <div className="mini" style={{ marginTop: 8 }}>✅ Entregado{contraEntrega ? " y cobrado" : ""}</div>
+              <div className="acciones" style={{ alignItems: "center" }}>
+                <div className="mini">✅ Entregado{contraEntrega ? " y cobrado" : ""}</div>
+                <button
+                  className="chico secundario"
+                  disabled={ocupado === p.id}
+                  onClick={() => {
+                    if (!window.confirm("¿Deshacer la entrega de este pedido?")) return;
+                    marcar(p, { estado: "pendiente", ...(contraEntrega ? { pago_recibido: false } : {}) });
+                  }}
+                >
+                  ↩️ Deshacer
+                </button>
+              </div>
             )}
           </div>
         );

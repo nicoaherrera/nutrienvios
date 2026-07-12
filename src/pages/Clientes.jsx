@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
-import { dinero, mensajeReactivacion, linkReactivacion } from "../logic.js";
+import { dinero, idCorto, nombreFormaPago, mensajeReactivacion, linkReactivacion } from "../logic.js";
 
 async function copiar(texto) {
   try {
@@ -10,9 +10,46 @@ async function copiar(texto) {
   }
 }
 
+const ESTADO_LABEL = { pendiente: "pendiente", en_reparto: "en reparto", entregado: "entregado", cancelado: "cancelado" };
+
+function Historial({ telefono }) {
+  const [pedidos, setPedidos] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    api.pedidosPorTelefono(telefono).then((ps) => setPedidos([...ps].reverse())).catch((e) => setError(e.message));
+  }, [telefono]);
+
+  if (error) return <p className="aviso error">{error}</p>;
+  if (!pedidos) return <p className="mini">Cargando historial…</p>;
+  if (!pedidos.length) return <p className="mini">Sin pedidos.</p>;
+
+  return (
+    <div className="tabla-scroll">
+      <table>
+        <thead>
+          <tr><th>Pedido</th><th>Fecha</th><th className="num">Mercadería</th><th>Pago</th><th>Estado</th></tr>
+        </thead>
+        <tbody>
+          {pedidos.map((p) => (
+            <tr key={p.id}>
+              <td>{idCorto(p)}</td>
+              <td>{p.fecha_entrega.slice(5)}</td>
+              <td className="num">{dinero(p.monto_pedido)}</td>
+              <td>{nombreFormaPago(p.forma_pago)}</td>
+              <td><span className={`badge estado-${p.estado}`}>{ESTADO_LABEL[p.estado] || p.estado}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function Clientes() {
   const [clientes, setClientes] = useState(null);
   const [error, setError] = useState(null);
+  const [abierto, setAbierto] = useState(null); // teléfono con el historial desplegado
 
   const cargar = useCallback(() => {
     setError(null);
@@ -55,6 +92,7 @@ export default function Clientes() {
       )}
 
       <div className="tarjeta">
+        <p className="mini">Tocá un cliente para ver su historial completo de pedidos.</p>
         <div className="tabla-scroll">
           <table>
             <thead>
@@ -65,13 +103,22 @@ export default function Clientes() {
             </thead>
             <tbody>
               {clientes.map((c) => (
-                <tr key={c.telefono}>
-                  <td>{c.nombre}</td>
-                  <td className="num">{c.compras}</td>
-                  <td className="num">{dinero(c.gastoTotal)}</td>
-                  <td>{c.ultimaEntrega.slice(5)}</td>
-                  <td className="num">{c.diasSinPedir}</td>
-                </tr>
+                <Fragment key={c.telefono}>
+                  <tr style={{ cursor: "pointer" }} onClick={() => setAbierto(abierto === c.telefono ? null : c.telefono)}>
+                    <td>{abierto === c.telefono ? "▾ " : "▸ "}{c.nombre}</td>
+                    <td className="num">{c.compras}</td>
+                    <td className="num">{dinero(c.gastoTotal)}</td>
+                    <td>{c.ultimaEntrega.slice(5)}</td>
+                    <td className="num">{c.diasSinPedir}</td>
+                  </tr>
+                  {abierto === c.telefono && (
+                    <tr>
+                      <td colSpan={5} style={{ background: "var(--fondo)" }}>
+                        <Historial telefono={c.telefono} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>

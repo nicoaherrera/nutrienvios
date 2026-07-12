@@ -167,6 +167,32 @@ export function calcularLiquidacion(pedidos) {
   };
 }
 
+function csvEscape(valor) {
+  const s = String(valor ?? "");
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+// CSV de la liquidación para pasarle a Excel/contador. Una fila por pedido
+// entregado, con lo mismo que ya se calcula para la pantalla.
+export function liquidacionCSV(pedidosEntregados) {
+  const filas = [
+    ["Fecha", "Pedido", "Cliente", "Zona", "Forma de pago", "Mercadería", "Envío cobrado", "Envío gratis", "Revisita", "Ganancia repartidor"],
+    ...pedidosEntregados.map((p) => [
+      p.fecha_entrega,
+      idCorto(p),
+      p.cliente_nombre,
+      p.zona?.nombre ?? "",
+      nombreFormaPago(p.forma_pago),
+      p.monto_pedido,
+      p.envio_gratis ? 0 : p.costo_envio,
+      p.envio_gratis ? (p.motivo_envio_gratis === "fidelizacion" ? "5ta compra" : "monto mínimo") : "",
+      envioReintento(p),
+      gananciaRepartidor(p),
+    ]),
+  ];
+  return filas.map((fila) => fila.map(csvEscape).join(",")).join("\n");
+}
+
 export function resumenPorZona(pedidosEntregados) {
   const mapa = new Map();
   for (const p of pedidosEntregados) {
