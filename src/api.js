@@ -33,4 +33,5 @@ export const api = {
   crearPedido: (pedido) => req("/api/pedidos", { method: "POST", body: pedido }),
   editarPedido: (id, cambios) => req(`/api/pedidos?id=${id}`, { method: "PATCH", body: cambios }),
   clientes: () => req("/api/clientes"),
+  optimizarRuta: (fecha) => req("/api/optimizar-ruta", { method: "POST", body: { fecha } }),
 };

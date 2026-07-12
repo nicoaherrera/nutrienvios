@@ -20,6 +20,8 @@ export default function Recorrido({ config }) {
   const [pedidos, setPedidos] = useState(null);
   const [error, setError] = useState(null);
   const [ocupado, setOcupado] = useState(null); // id del pedido que se está actualizando
+  const [optimizando, setOptimizando] = useState(false);
+  const [resumenRuta, setResumenRuta] = useState(null); // km/duración de la última optimización
 
   const cargar = useCallback(() => {
     setError(null);
@@ -39,6 +41,20 @@ export default function Recorrido({ config }) {
       setError(e.message);
     } finally {
       setOcupado(null);
+    }
+  }
+
+  async function optimizar() {
+    setOptimizando(true);
+    setError(null);
+    try {
+      const r = await api.optimizarRuta(fecha);
+      setResumenRuta(r);
+      cargar();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setOptimizando(false);
     }
   }
 
@@ -65,6 +81,18 @@ export default function Recorrido({ config }) {
           <span><strong>{entregados.length} de {orden.length}</strong> entregados</span>
           <span className="monto">Envíos del día: {dinero(totalDia)}</span>
         </div>
+        {pendientes.length >= 2 && (
+          <button className="primario" disabled={optimizando} onClick={optimizar}>
+            {optimizando ? "Optimizando…" : "🧭 Optimizar recorrido (distancia real)"}
+          </button>
+        )}
+        {resumenRuta && (
+          <div className="aviso ok">
+            ✅ Recorrido optimizado: {resumenRuta.paradas} paradas
+            {resumenRuta.km ? ` · ${resumenRuta.km} km` : ""}
+            {resumenRuta.duracion ? ` · ~${Math.round(parseInt(resumenRuta.duracion) / 60)} min de manejo` : ""}
+          </div>
+        )}
         {links.map((url, i) => (
           <a key={url} className="botonlink" href={url} target="_blank" rel="noreferrer">
             🗺️ Abrir ruta en Google Maps{links.length > 1 ? ` (tramo ${i + 1} de ${links.length})` : ""}
@@ -72,10 +100,9 @@ export default function Recorrido({ config }) {
         ))}
         {links.length > 0 && (
           <p className="mini">
-            💡 Una vez adentro de Maps, tocá <strong>"Optimizar orden"</strong> (ícono de reordenar, arriba de la lista de
-            paradas) para que arme la ruta más corta según la distancia real — el orden de esta pantalla es solo por zona.
-            Como el orden real puede terminar distinto, "Avisar que voy en camino" está disponible en cualquier parada, no
-            solo en la marcada como próxima.
+            💡 Tocá "Optimizar recorrido" al arrancar el día: reordena las paradas de esta pantalla por distancia real de
+            manejo (Google Routes) y el link de Maps ya sale en ese orden. Si después salteás o reprogramás alguna, el
+            resto mantiene su orden.
           </p>
         )}
       </div>
@@ -160,6 +187,7 @@ export default function Recorrido({ config }) {
                         estado: "pendiente",
                         fecha_entrega: manana,
                         pospuesto: false,
+                        orden_ruta: null,
                         envio_reintento: envioReintento(p) + tarifa,
                         notas: [p.notas, `${fecha}: ${nota} — reprogramado a ${manana} (+${dinero(tarifa)} revisita)`].filter(Boolean).join(" | "),
                       });

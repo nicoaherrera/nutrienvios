@@ -55,6 +55,7 @@ create table pedidos (
   pago_recibido boolean not null default false,
   estado text not null default 'pendiente' check (estado in ('pendiente', 'en_reparto', 'entregado', 'cancelado')),
   pospuesto boolean not null default false, -- salteado dentro del día, decisión del repartidor
+  orden_ruta int, -- posición asignada por la optimización de ruta (Google Routes API); null = sin optimizar
   envio_reintento int not null default 0,   -- envío extra acumulado por revisitas (se cobra siempre, incluso con envío gratis)
   cupon_enviado_at timestamptz,
   resena_enviada_at timestamptz, -- pedido de reseña de Google (solo primera compra, aparte del cupón)

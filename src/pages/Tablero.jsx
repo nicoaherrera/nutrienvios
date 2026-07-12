@@ -62,6 +62,7 @@ export default function Tablero({ config, navegar }) {
         fecha_entrega: manana,
         estado: "pendiente",
         pospuesto: false,
+        orden_ruta: null,
         envio_reintento: envioReintento(p) + extra,
         notas: [p.notas, `reprogramado ${hoyISO()} → ${manana}${conCargo ? ` (+${dinero(extra)} revisita)` : " sin cargo"}`].filter(Boolean).join(" | "),
       });

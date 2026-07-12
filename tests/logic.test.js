@@ -84,6 +84,37 @@ test("recorrido: zonas en orden y refrigerados primero dentro de cada zona", () 
   assert.deepEqual(orden.map((x) => x.id), ["casco-frio", "casco-seco", "hornos-frio", "berisso"]);
 });
 
+test("recorrido optimizado: orden_ruta manda sobre zona/frío; pospuestas igual al final", () => {
+  const p = (id, zona, extra = {}) => ({
+    id, zona, tiene_refrigerados: false, pospuesto: false, created_at: "2026-07-12T09:00:00", ...extra,
+  });
+  // Google decidió: casco-2 primero aunque por zona/hora iría después
+  const orden = ordenarRecorrido([
+    p("berisso", zonas.berisso, { orden_ruta: 1 }),
+    p("casco-1", zonas.casco, { orden_ruta: 2 }),
+    p("casco-2", zonas.casco, { orden_ruta: 0 }),
+  ]);
+  assert.deepEqual(orden.map((x) => x.id), ["casco-2", "berisso", "casco-1"]);
+
+  // una parada pospuesta va al final aunque tenga orden_ruta
+  const conPospuesta = ordenarRecorrido([
+    p("a", zonas.casco, { orden_ruta: 0, pospuesto: true }),
+    p("b", zonas.casco, { orden_ruta: 1 }),
+  ]);
+  assert.deepEqual(conPospuesta.map((x) => x.id), ["b", "a"]);
+
+  // un pedido cargado después de optimizar (sin orden_ruta) va al final
+  const mixto = ordenarRecorrido([
+    p("nuevo", zonas.casco),
+    p("optimizado", zonas.berisso, { orden_ruta: 0 }),
+  ]);
+  assert.deepEqual(mixto.map((x) => x.id), ["optimizado", "nuevo"]);
+
+  // sin optimización, el orden clásico por zona sigue igual
+  const clasico = ordenarRecorrido([p("lejos", zonas.berisso), p("cerca", zonas.casco)]);
+  assert.deepEqual(clasico.map((x) => x.id), ["cerca", "lejos"]);
+});
+
 test("cliente nuevo: sin pedidos previos no cancelados", () => {
   assert.equal(esClienteNuevo([]), true);
   assert.equal(esClienteNuevo([{ estado: "cancelado" }]), true);

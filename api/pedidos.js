@@ -6,12 +6,12 @@ const CAMPOS_PEDIDO = [
   "fecha_entrega", "cliente_nombre", "cliente_telefono", "direccion", "entre_calles", "localidad", "referencia",
   "zona_id", "monto_pedido", "costo_envio", "envio_gratis", "motivo_envio_gratis", "tiene_refrigerados",
   "incluye_cooler", "cliente_nuevo", "cupon_usado", "forma_pago", "pago_recibido",
-  "estado", "notas", "cupon_enviado_at", "resena_enviada_at", "pospuesto", "envio_reintento",
+  "estado", "notas", "cupon_enviado_at", "resena_enviada_at", "pospuesto", "envio_reintento", "orden_ruta",
 ];
 
 // El repartidor puede marcar entregas, pagos, posponer paradas y reprogramar
 // para otro día con cargo de revisita (él es el que está en la puerta).
-const CAMPOS_REPARTIDOR = ["estado", "pago_recibido", "notas", "pospuesto", "fecha_entrega", "envio_reintento"];
+const CAMPOS_REPARTIDOR = ["estado", "pago_recibido", "notas", "pospuesto", "fecha_entrega", "envio_reintento", "orden_ruta"];
 
 function filtrar(body, permitidos) {
   return Object.fromEntries(Object.entries(body || {}).filter(([k]) => permitidos.includes(k)));

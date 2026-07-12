@@ -81,10 +81,17 @@ export function validarCupon({ pedidosPrevios, monto, config, hoy }) {
 // Orden del recorrido: por orden_recorrido de zona; dentro de cada zona,
 // primero las paradas con refrigerados (el frío de la conservadora es limitado).
 // Las pospuestas por el repartidor van al final del día, manteniendo su orden entre sí.
+// Si el día fue optimizado con la Routes API de Google (orden_ruta cargado),
+// ese orden manda — el repartidor eligió la ruta por distancia real y asume
+// que los refrigerados aguantan en la conservadora.
 export function ordenarRecorrido(pedidos) {
   return [...pedidos].sort((a, b) => {
     const pospuesto = Number(Boolean(a.pospuesto)) - Number(Boolean(b.pospuesto));
     if (pospuesto !== 0) return pospuesto;
+    const aRuta = a.orden_ruta != null;
+    const bRuta = b.orden_ruta != null;
+    if (aRuta && bRuta) return a.orden_ruta - b.orden_ruta;
+    if (aRuta !== bRuta) return aRuta ? -1 : 1; // los sin optimizar (cargados después) van al final
     const zona = (a.zona?.orden_recorrido ?? 99) - (b.zona?.orden_recorrido ?? 99);
     if (zona !== 0) return zona;
     const frio = Number(b.tiene_refrigerados) - Number(a.tiene_refrigerados);
