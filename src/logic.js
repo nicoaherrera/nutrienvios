@@ -364,12 +364,12 @@ export function linkReactivacion(cliente) {
 // políticas de Google) — la tienda lo manda cuando le parece, sin condicionarlo.
 export function textoResenaWhatsApp(nombre, config) {
   return [
-    `¡Hola ${nombre}! 🌱 Gracias por elegir Nutridiet Market en tu primera compra 💚`,
+    `¡Hola ${nombre}! 🌱 Te escribimos de Nutridiet Market. Gracias por elegirnos en tu primera compra 💚`,
     ``,
-    `¿Nos regalás dos minutos para dejarnos una reseña? Nos ayuda un montón a seguir creciendo 🙏`,
+    `¿Nos regalás dos minutitos para dejarnos tu opinión en Google? Nos ayuda un montón a seguir creciendo 🙏`,
     config.link_resena_google,
     ``,
-    `¡Gracias! 🥗`,
+    `¡Gracias por sumarte a la tribu Nutridiet! 🥗`,
   ].join("\n");
 }
 
