@@ -206,10 +206,8 @@ export default function Recorrido({ config }) {
                       await copiarYAbrir(p.cliente_telefono, texto, linkWhatsApp(p.cliente_telefono, texto));
                     } else {
                       await marcar(p, { estado: "pendiente", notas: [p.notas, `${fecha}: ${nota}`].filter(Boolean).join(" | ") });
-                      if (window.confirm("¿Avisarle al cliente por WhatsApp que no lo encontramos?")) {
-                        const texto = mensajeNoTeEncontramos(p);
-                        await copiarYAbrir(p.cliente_telefono, texto, linkWhatsApp(p.cliente_telefono, texto));
-                      }
+                      const texto = mensajeNoTeEncontramos(p);
+                      await copiarYAbrir(p.cliente_telefono, texto, linkWhatsApp(p.cliente_telefono, texto));
                     }
                   }}
                 >

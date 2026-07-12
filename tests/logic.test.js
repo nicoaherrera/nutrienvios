@@ -402,7 +402,9 @@ test("mensajes de no-encontrado y reprogramación: estilo Nutridiet con la polí
   const noEstaba = mensajeNoTeEncontramos(pedido);
   assert.match(noEstaba, /pedido #37/);
   assert.match(noEstaba, /no te encontramos/);
+  assert.match(noEstaba, /Mañana nos comunicamos para coordinar una nueva entrega/);
   assert.match(noEstaba, /suma de nuevo el costo de envío/);
+  assert.match(noEstaba, /🫶/);
 
   const conCargo = mensajeReprogramado(pedido, "2026-07-12", 3500);
   assert.match(conCargo, /Reprogramamos tu pedido #37/);

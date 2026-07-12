@@ -379,9 +379,9 @@ export function linkAvisoEnCamino(pedido, demora) {
 export function mensajeNoTeEncontramos(pedido) {
   return (
     `¡Hola ${pedido.cliente_nombre}! Te escribimos de Nutridiet Market 🌱. ` +
-    `El repartidor pasó por ${pedido.direccion} con tu pedido ${idCorto(pedido)} y no te encontramos 😔. ` +
-    `Escribinos para reprogramar la entrega. Tené en cuenta que, como conversamos al coordinar, ` +
-    `la nueva visita suma de nuevo el costo de envío 🙏. ¡Gracias!`
+    `Pasamos por ${pedido.direccion} con tu pedido ${idCorto(pedido)} y no te encontramos 😔. ` +
+    `Mañana nos comunicamos para coordinar una nueva entrega. Tené en cuenta que, como conversamos al coordinar, ` +
+    `la nueva visita suma de nuevo el costo de envío 🙏. ¡Gracias! 🫶`
   );
 }
 
@@ -490,7 +490,7 @@ export function textoResenaWhatsApp(nombre, config) {
     `¿Nos regalás dos minutitos para dejarnos tu opinión en Google? Nos ayuda un montón a seguir creciendo 🙏`,
     config.link_resena_google,
     ``,
-    `¡Gracias por sumarte a la tribu Nutridiet! 🥗`,
+    `¡Gracias por sumarte a la tribu Nutridiet! 🫶`,
   ].join("\n");
 }
 
@@ -498,9 +498,9 @@ export function textoCuponWhatsApp(nombre, config) {
   return [
     `¡Hola ${nombre}! Gracias por tu primera compra en Nutridiet Market 💚`,
     ``,
-    `Te regalamos un ${config.cupon_descuento_pct}% de descuento para tu próximo pedido con el código *${config.cupon_bienvenida}*.`,
+    `🎁 Te regalamos un ${config.cupon_descuento_pct}% de descuento para tu próximo pedido 🛒 con el código *${config.cupon_bienvenida}*.`,
     `Válido por ${config.cupon_vigencia_dias} días, compra mínima ${dinero(config.cupon_minimo)}.`,
     ``,
-    `¡Te esperamos! 🥗`,
+    `¡Te esperamos! 🫶`,
   ].join("\n");
 }
