@@ -4,7 +4,7 @@ import {
   dinero, hoyISO, ordenarRecorrido, montoACobrar, linksGoogleMaps, direccionParaMapa,
   gananciaRepartidor, nombreFormaPago, idCorto, siguienteParada,
   ultimaEntregada, demoraEstimada, linkAvisoEnCamino, mensajeEnCamino, envioReintento,
-  linkWhatsApp, mensajeNoTeEncontramos, mensajeNoEstabaReprogramado,
+  linkWhatsApp, mensajeNoEstabaReprogramado, mensajeNoTeEncontramos, mensajeCancelado,
 } from "../logic.js";
 
 // Algunos teléfonos corrompen los emoji que van prellenados en el link de
@@ -172,6 +172,23 @@ export default function Recorrido({ config }) {
                   {p.pospuesto ? "↩️ Retomar" : "⏭️ Más tarde"}
                 </button>
               )}
+              {!entregado && (
+                <button
+                  className="chico peligro"
+                  disabled={ocupado === p.id}
+                  onClick={async () => {
+                    if (!window.confirm(`¿Cancelar la entrega de ${p.cliente_nombre}? Se le avisa por WhatsApp y seguís con el recorrido.`)) return;
+                    // WhatsApp se abre antes de guardar: después de un await el
+                    // navegador puede bloquear el popup por no ser un click directo.
+                    const texto = mensajeCancelado(p);
+                    navigator.clipboard.writeText(texto).catch(() => {});
+                    window.open(linkWhatsApp(p.cliente_telefono, texto), "_blank");
+                    await marcar(p, { estado: "cancelado", notas: [p.notas, `${fecha}: cancelado por el cliente en el recorrido`].filter(Boolean).join(" | ") });
+                  }}
+                >
+                  🚫 Cancelar
+                </button>
+              )}
             </div>
 
             {!entregado ? (
@@ -193,7 +210,7 @@ export default function Recorrido({ config }) {
                     const d = new Date(fecha + "T00:00:00");
                     d.setDate(d.getDate() + 1);
                     const manana = hoyISO(d);
-                    if (window.confirm(`¿Reprogramar para mañana sumando ${dinero(tarifa)} de revisita?\n(Cancelar = queda para que lo resuelva la tienda)`)) {
+                    if (window.confirm(`¿Reprogramar para mañana sumando ${dinero(tarifa)} de revisita?\n(Cancelar = la fecha la coordina la tienda; al cliente se le avisa igual)`)) {
                       await marcar(p, {
                         estado: "pendiente",
                         fecha_entrega: manana,

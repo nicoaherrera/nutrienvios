@@ -6,7 +6,7 @@ import {
   ordenarRecorrido, montoACobrar, linksGoogleMaps, calcularLiquidacion,
   semanaPasada, gananciaRepartidor, idCorto, siguienteParada, ultimaEntregada,
   demoraEstimada, mensajeEnCamino, linkAvisoEnCamino, envioCobradoPorNutridiet,
-  mensajeNoTeEncontramos, mensajeReprogramado, mensajeNoEstabaReprogramado,
+  mensajeReprogramado, mensajeNoEstabaReprogramado, mensajeNoTeEncontramos, mensajeCancelado,
   esQuintaCompra, motivoEnvioGratis, agregarClientes, mensajeReactivacion, linkReactivacion,
   textoResenaWhatsApp, liquidacionCSV, direccionParaMapa, textoConfirmacionWhatsApp,
   componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
@@ -394,17 +394,24 @@ test("revisita en pedido con envío GRATIS pagado por MP: la revisita se cobra i
   assert.equal(gananciaRepartidor(pedido), 13000);
 });
 
-test("mensajes de no-encontrado y reprogramación: estilo Nutridiet con la política de revisita", () => {
+test("mensajes de reprogramación: estilo Nutridiet con la política de revisita", () => {
   const pedido = {
     numero_pedido: 37, cliente_nombre: "Ana", cliente_telefono: "2215550000",
     direccion: "Calle 5 N°123, La Plata",
   };
+  // no estaba y la fecha la coordina la tienda: el aviso sale igual
   const noEstaba = mensajeNoTeEncontramos(pedido);
   assert.match(noEstaba, /pedido #37/);
   assert.match(noEstaba, /no te encontramos/);
-  assert.match(noEstaba, /Mañana nos comunicamos para coordinar una nueva entrega/);
-  assert.match(noEstaba, /suma de nuevo el costo de envío/);
+  assert.match(noEstaba, /Nos comunicamos para coordinar una nueva entrega/);
+  assert.match(noEstaba, /al momento de hacer el pedido/);
   assert.match(noEstaba, /🫶/);
+
+  // el cliente pidió cancelar en el momento: confirmación + reprogramación a coordinar
+  const cancelado = mensajeCancelado(pedido);
+  assert.match(cancelado, /cancelamos la entrega de hoy de tu pedido #37/);
+  assert.match(cancelado, /Nos comunicamos para reprogramarla/);
+  assert.match(cancelado, /🫶/);
 
   const conCargo = mensajeReprogramado(pedido, "2026-07-12", 3500);
   assert.match(conCargo, /Reprogramamos tu pedido #37/);
@@ -418,6 +425,7 @@ test("mensajes de no-encontrado y reprogramación: estilo Nutridiet con la polí
   const enPuerta = mensajeNoEstabaReprogramado(pedido, "2026-07-12", 3500);
   assert.match(enPuerta, /no te encontramos/);
   assert.match(enPuerta, /Reprogramamos la entrega para el domingo/);
+  assert.match(enPuerta, /Como conversamos al momento de hacer el pedido/);
   assert.match(enPuerta, /se suma \$3\.500 del nuevo envío/);
 });
 

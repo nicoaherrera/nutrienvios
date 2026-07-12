@@ -374,14 +374,26 @@ export function linkAvisoEnCamino(pedido, demora) {
   return linkWhatsApp(pedido.cliente_telefono, mensajeEnCamino(pedido, demora));
 }
 
-// Cuando el repartidor marca "No estaba": aviso al cliente recordando la
-// política de revisita (los clientes ya la conocen al coordinar la entrega).
+// Cuando el repartidor marca "No estaba" sin reprogramar en el momento:
+// el aviso sale igual (siempre se le avisa al cliente), la fecha la
+// coordina la tienda después.
 export function mensajeNoTeEncontramos(pedido) {
   return (
     `¡Hola ${pedido.cliente_nombre}! Te escribimos de Nutridiet Market 🌱. ` +
     `Pasamos por ${pedido.direccion} con tu pedido ${idCorto(pedido)} y no te encontramos 😔. ` +
-    `Mañana nos comunicamos para coordinar una nueva entrega. Tené en cuenta que, como conversamos al coordinar, ` +
-    `la nueva visita suma de nuevo el costo de envío 🙏. ¡Gracias! 🫶`
+    `Nos comunicamos para coordinar una nueva entrega. Tené en cuenta que, como conversamos ` +
+    `al momento de hacer el pedido, la nueva visita suma de nuevo el costo de envío 🙏. ¡Gracias! 🫶`
+  );
+}
+
+// Cuando el cliente le pide al repartidor cancelar la entrega en el momento
+// (ej. al recibir el aviso de "sos el próximo"): confirmación + reprogramación
+// a coordinar por la tienda.
+export function mensajeCancelado(pedido) {
+  return (
+    `¡Hola ${pedido.cliente_nombre}! Te escribimos de Nutridiet Market 🌱. ` +
+    `Como nos pediste, cancelamos la entrega de hoy de tu pedido ${idCorto(pedido)}. ` +
+    `Nos comunicamos para reprogramarla cuando te quede bien. ¡Gracias! 🫶`
   );
 }
 
@@ -396,7 +408,7 @@ export function mensajeNoEstabaReprogramado(pedido, fechaISO, extraRevisita) {
     `El repartidor pasó por ${pedido.direccion} con tu pedido ${idCorto(pedido)} y no te encontramos 😔. ` +
     `Reprogramamos la entrega para el ${fecha}.`;
   if (extraRevisita > 0) {
-    msg += ` Como conversamos al coordinar, se suma ${dinero(extraRevisita)} del nuevo envío 🙏.`;
+    msg += ` Como conversamos al momento de hacer el pedido, se suma ${dinero(extraRevisita)} del nuevo envío 🙏.`;
   }
   msg += " Si ese día no te queda bien, escribinos. ¡Gracias! 💚";
   return msg;
