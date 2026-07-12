@@ -181,8 +181,12 @@ export default function Recorrido({ config }) {
                   className="chico peligro"
                   disabled={ocupado === p.id}
                   onClick={async () => {
-                    if (!window.confirm(`¿Cancelar la entrega de ${p.cliente_nombre}? Se le avisa por WhatsApp y seguís con el recorrido.`)) return;
-                    await marcar(p, { estado: "cancelado", notas: [p.notas, `${fecha}: cancelado por el cliente en el recorrido`].filter(Boolean).join(" | ") });
+                    const motivo = window.prompt(
+                      `¿Por qué se cancela la entrega de ${p.cliente_nombre}? (la tienda lo ve en el Tablero; se le avisa por WhatsApp)`,
+                      "Lo pidió el cliente"
+                    );
+                    if (motivo === null) return;
+                    await marcar(p, { estado: "cancelado", notas: [p.notas, `${fecha}: CANCELADO — ${motivo}`].filter(Boolean).join(" | ") });
                     const texto = mensajeCancelado(p);
                     await copiarYAbrir(p.cliente_telefono, texto, linkWhatsApp(p.cliente_telefono, texto));
                   }}

@@ -36,11 +36,17 @@ export default function Tablero({ config, navegar }) {
   useEffect(cargar, [cargar]);
 
   async function cambiarEstado(p, estado) {
+    const cambios = {
+      estado,
+      ...(estado === "entregado" && p.forma_pago === "efectivo_contra_entrega" ? { pago_recibido: true } : {}),
+    };
+    if (estado === "cancelado") {
+      const motivo = window.prompt("¿Por qué se cancela? (queda en la tarjeta)", "Lo pidió el cliente");
+      if (motivo === null) return; // se arrepintió
+      cambios.notas = [p.notas, `${hoyISO()}: CANCELADO — ${motivo}`].filter(Boolean).join(" | ");
+    }
     try {
-      await api.editarPedido(p.id, {
-        estado,
-        ...(estado === "entregado" && p.forma_pago === "efectivo_contra_entrega" ? { pago_recibido: true } : {}),
-      });
+      await api.editarPedido(p.id, cambios);
       cargar();
     } catch (e) {
       setError(e.message);
@@ -108,6 +114,9 @@ export default function Tablero({ config, navegar }) {
   const recordatoriosResena = pedidos.filter((p) => p.estado === "entregado" && p.cliente_nuevo && !p.resena_enviada_at);
   const atrasados = pedidos.filter((p) => p.fecha_entrega < hoy && (p.estado === "pendiente" || p.estado === "en_reparto"));
   const proximos = pedidos.filter((p) => p.fecha_entrega >= hoy && p.estado !== "cancelado");
+  // Cancelados de las últimas 2 semanas: hay que reprogramarlos o darlos por perdidos
+  // (el mensaje al cliente promete "nos comunicamos para reprogramar").
+  const cancelados = pedidos.filter((p) => p.estado === "cancelado");
 
   const porFecha = new Map();
   for (const p of proximos) {
@@ -135,6 +144,7 @@ export default function Tablero({ config, navegar }) {
         {envioReintento(p) > 0 && <> + 🔁 revisita {dinero(envioReintento(p))}</>} · {nombreFormaPago(p.forma_pago)}
         {" · "}{p.pago_recibido ? "✅ pago recibido" : "⏳ pago pendiente"}
       </div>
+      {p.notas && <div className="mini">📝 {p.notas}</div>}
       <div className="acciones" style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
         <select value={p.estado} onChange={(e) => cambiarEstado(p, e.target.value)} style={{ width: "auto", padding: "8px" }}>
           {ESTADOS.map((e) => <option key={e} value={e}>{e.replace("_", " ")}</option>)}
@@ -224,6 +234,14 @@ export default function Tablero({ config, navegar }) {
           {porFecha.get(f).map((p) => <Pedido key={p.id} p={p} />)}
         </div>
       ))}
+
+      {cancelados.length > 0 && (
+        <div>
+          <h2>🚫 Cancelados a reprogramar <span className="mini">({cancelados.length}, últimas 2 semanas)</span></h2>
+          <p className="mini">Al cliente se le prometió que nos comunicamos para reprogramar: coordiná la nueva fecha, cambiá la fecha de entrega con "✏️ Editar" y ponelo en "pendiente" con el desplegable. Si quedó sin efecto, dejalo acá.</p>
+          {cancelados.map((p) => <Pedido key={p.id} p={p} />)}
+        </div>
+      )}
     </>
   );
 }
