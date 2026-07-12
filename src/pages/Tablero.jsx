@@ -7,6 +7,13 @@ import {
 
 const ESTADOS = ["pendiente", "en_reparto", "entregado", "cancelado"];
 
+// Si el navegador bloquea el popup (Safari / app en pantalla de inicio),
+// se navega a WhatsApp en la misma pestaña, que no se puede bloquear.
+function abrirWhatsApp(link) {
+  const ventana = window.open(link, "_blank");
+  if (!ventana) window.location.assign(link);
+}
+
 function fechaLinda(iso) {
   const hoy = hoyISO();
   if (iso === hoy) return "HOY";
@@ -68,7 +75,7 @@ export default function Tablero({ config, navegar }) {
       });
       const texto = mensajeReprogramado(p, manana, extra);
       try { await navigator.clipboard.writeText(texto); } catch { /* el link ya lleva el texto */ }
-      window.open(linkWhatsApp(p.cliente_telefono, texto), "_blank");
+      abrirWhatsApp(linkWhatsApp(p.cliente_telefono, texto));
       cargar();
     } catch (e) {
       setError(e.message);
@@ -160,7 +167,7 @@ export default function Tablero({ config, navegar }) {
                   onClick={async () => {
                     const texto = textoCuponWhatsApp(p.cliente_nombre, config);
                     try { await navigator.clipboard.writeText(texto); } catch { /* el link ya lleva el texto */ }
-                    window.open(linkWhatsApp(p.cliente_telefono, texto), "_blank");
+                    abrirWhatsApp(linkWhatsApp(p.cliente_telefono, texto));
                   }}
                 >
                   💬 Enviar por WhatsApp
@@ -184,7 +191,7 @@ export default function Tablero({ config, navegar }) {
                   onClick={async () => {
                     const texto = textoResenaWhatsApp(p.cliente_nombre, config);
                     try { await navigator.clipboard.writeText(texto); } catch { /* el link ya lleva el texto */ }
-                    window.open(linkWhatsApp(p.cliente_telefono, texto), "_blank");
+                    abrirWhatsApp(linkWhatsApp(p.cliente_telefono, texto));
                   }}
                 >
                   💬 Enviar por WhatsApp

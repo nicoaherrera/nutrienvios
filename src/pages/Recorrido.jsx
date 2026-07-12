@@ -10,9 +10,13 @@ import {
 // Algunos teléfonos corrompen los emoji que van prellenados en el link de
 // wa.me (aparecen como �). Copiamos el texto real al portapapeles antes de
 // abrir el chat, así si el prellenado sale mal, pegar (Cmd/Ctrl+V) lo arregla.
+// Si el navegador bloquea el popup (Safari/app en pantalla de inicio, sobre
+// todo después de un confirm), se navega a WhatsApp en la misma pestaña:
+// eso no se puede bloquear, y al volver la página se recarga sola.
 async function copiarYAbrir(telefono, texto, link) {
   try { await navigator.clipboard.writeText(texto); } catch { /* el link ya lleva el texto */ }
-  window.open(link, "_blank");
+  const ventana = window.open(link, "_blank");
+  if (!ventana) window.location.assign(link);
 }
 
 export default function Recorrido({ config }) {
@@ -178,12 +182,9 @@ export default function Recorrido({ config }) {
                   disabled={ocupado === p.id}
                   onClick={async () => {
                     if (!window.confirm(`¿Cancelar la entrega de ${p.cliente_nombre}? Se le avisa por WhatsApp y seguís con el recorrido.`)) return;
-                    // WhatsApp se abre antes de guardar: después de un await el
-                    // navegador puede bloquear el popup por no ser un click directo.
-                    const texto = mensajeCancelado(p);
-                    navigator.clipboard.writeText(texto).catch(() => {});
-                    window.open(linkWhatsApp(p.cliente_telefono, texto), "_blank");
                     await marcar(p, { estado: "cancelado", notas: [p.notas, `${fecha}: cancelado por el cliente en el recorrido`].filter(Boolean).join(" | ") });
+                    const texto = mensajeCancelado(p);
+                    await copiarYAbrir(p.cliente_telefono, texto, linkWhatsApp(p.cliente_telefono, texto));
                   }}
                 >
                   🚫 Cancelar
