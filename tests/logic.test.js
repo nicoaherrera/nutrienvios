@@ -8,7 +8,7 @@ import {
   demoraEstimada, mensajeEnCamino, linkAvisoEnCamino, envioCobradoPorNutridiet,
   mensajeNoTeEncontramos, mensajeReprogramado, mensajeNoEstabaReprogramado,
   esQuintaCompra, motivoEnvioGratis, agregarClientes, mensajeReactivacion, linkReactivacion,
-  textoResenaWhatsApp, liquidacionCSV,
+  textoResenaWhatsApp, liquidacionCSV, direccionParaMapa,
 } from "../src/logic.js";
 
 const config = {
@@ -116,24 +116,36 @@ test("cupón vencido pasada la vigencia", () => {
   assert.match(motivo, /venció/i);
 });
 
-test("link de Google Maps: origen + paradas en orden, máx. 9 por link", () => {
+test("link de Google Maps: origen + paradas en orden, máx. 9 por link, con localidad agregada según la zona de cada una", () => {
   const local = "Av. 7 N°136, La Plata";
-  const paradas = [{ direccion: "Calle 1 y 50, La Plata" }, { direccion: "Montevideo 456, Berisso" }];
+  const paradas = [{ direccion: "Calle 1 y 50", zona: zonas.casco }, { direccion: "Montevideo 456", zona: zonas.berisso }];
   const links = linksGoogleMaps(local, paradas);
   assert.equal(links.length, 1);
   assert.equal(
     links[0],
     "https://www.google.com/maps/dir/" +
-      [local, paradas[0].direccion, paradas[1].direccion].map(encodeURIComponent).join("/")
+      [local, "Calle 1 y 50, La Plata, Argentina", "Montevideo 456, Berisso, Argentina"].map(encodeURIComponent).join("/")
   );
 
-  // 11 paradas → 2 links; el segundo arranca en la parada 9
-  const muchas = Array.from({ length: 11 }, (_, i) => ({ direccion: `Calle ${i + 1}, La Plata` }));
+  // 11 paradas → 2 links; el segundo arranca en la parada 9 (ya con la localidad puesta)
+  const muchas = Array.from({ length: 11 }, (_, i) => ({ direccion: `Calle ${i + 1}`, zona: zonas.casco }));
   const dos = linksGoogleMaps(local, muchas);
   assert.equal(dos.length, 2);
-  assert.ok(dos[0].endsWith(encodeURIComponent("Calle 9, La Plata")));
-  assert.ok(dos[1].startsWith("https://www.google.com/maps/dir/" + encodeURIComponent("Calle 9, La Plata")));
-  assert.ok(dos[1].endsWith(encodeURIComponent("Calle 11, La Plata")));
+  assert.ok(dos[0].endsWith(encodeURIComponent("Calle 9, La Plata, Argentina")));
+  assert.ok(dos[1].startsWith("https://www.google.com/maps/dir/" + encodeURIComponent("Calle 9, La Plata, Argentina")));
+  assert.ok(dos[1].endsWith(encodeURIComponent("Calle 11, La Plata, Argentina")));
+});
+
+test("dirección para Maps: usa la localidad de la zona del pedido, no siempre La Plata", () => {
+  // sin localidad en el texto: usa la de la zona (ej. "29 n234" en Casco urbano mandaba a España)
+  assert.equal(direccionParaMapa("29 n234", zonas.casco), "29 n234, La Plata, Argentina");
+  assert.equal(direccionParaMapa("Montevideo 456", zonas.berisso), "Montevideo 456, Berisso, Argentina");
+  assert.equal(direccionParaMapa("Calle 10", zonas.citybell), "Calle 10, La Plata, Argentina");
+  // sin zona (no debería pasar en la práctica): cae a La Plata por defecto
+  assert.equal(direccionParaMapa("29 n234"), "29 n234, La Plata, Argentina");
+  // si el texto ya menciona una localidad, no la duplica ni fuerza la de la zona
+  assert.equal(direccionParaMapa("Montevideo 456, Ensenada", zonas.berisso), "Montevideo 456, Ensenada, Argentina");
+  assert.equal(direccionParaMapa("Calle 5, La Plata", zonas.casco), "Calle 5, La Plata, Argentina");
 });
 
 test("cancelados y no entregados no aparecen en la liquidación", () => {

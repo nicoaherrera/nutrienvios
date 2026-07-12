@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
 import {
-  dinero, hoyISO, ordenarRecorrido, montoACobrar, linksGoogleMaps,
+  dinero, hoyISO, ordenarRecorrido, montoACobrar, linksGoogleMaps, direccionParaMapa,
   gananciaRepartidor, nombreFormaPago, idCorto, siguienteParada,
-  ultimaEntregada, demoraEstimada, linkAvisoEnCamino, envioReintento,
+  ultimaEntregada, demoraEstimada, linkAvisoEnCamino, mensajeEnCamino, envioReintento,
   linkWhatsApp, mensajeNoTeEncontramos, mensajeNoEstabaReprogramado,
 } from "../logic.js";
+
+// Algunos teléfonos corrompen los emoji que van prellenados en el link de
+// wa.me (aparecen como �). Copiamos el texto real al portapapeles antes de
+// abrir el chat, así si el prellenado sale mal, pegar (Cmd/Ctrl+V) lo arregla.
+async function copiarYAbrir(telefono, texto, link) {
+  try { await navigator.clipboard.writeText(texto); } catch { /* el link ya lleva el texto */ }
+  window.open(link, "_blank");
+}
 
 export default function Recorrido({ config }) {
   const [fecha, setFecha] = useState(hoyISO());
@@ -99,13 +107,19 @@ export default function Recorrido({ config }) {
             )}
 
             {esProxima && (
-              <a className="botonlink wsp" href={linkAvisoEnCamino(p, demoraEstimada(p, ultima))} target="_blank" rel="noreferrer">
+              <a
+                className="botonlink wsp"
+                href={linkAvisoEnCamino(p, demoraEstimada(p, ultima))}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => { navigator.clipboard.writeText(mensajeEnCamino(p, demoraEstimada(p, ultima))).catch(() => {}); }}
+              >
                 Avisar que voy en camino 🚀
               </a>
             )}
 
             <div className="acciones">
-              <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://maps.google.com/?q=${encodeURIComponent(p.direccion)}`} target="_blank" rel="noreferrer">📍 Mapa</a>
+              <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://maps.google.com/?q=${encodeURIComponent(direccionParaMapa(p.direccion, p.zona))}`} target="_blank" rel="noreferrer">📍 Mapa</a>
               <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://wa.me/${p.cliente_telefono.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">💬 WhatsApp</a>
               {!entregado && (
                 <button className="chico secundario" disabled={ocupado === p.id} onClick={() => marcar(p, { pospuesto: !p.pospuesto })}>
@@ -141,11 +155,13 @@ export default function Recorrido({ config }) {
                         envio_reintento: envioReintento(p) + tarifa,
                         notas: [p.notas, `${fecha}: ${nota} — reprogramado a ${manana} (+${dinero(tarifa)} revisita)`].filter(Boolean).join(" | "),
                       });
-                      window.open(linkWhatsApp(p.cliente_telefono, mensajeNoEstabaReprogramado(p, manana, tarifa)), "_blank");
+                      const texto = mensajeNoEstabaReprogramado(p, manana, tarifa);
+                      await copiarYAbrir(p.cliente_telefono, texto, linkWhatsApp(p.cliente_telefono, texto));
                     } else {
                       await marcar(p, { estado: "pendiente", notas: [p.notas, `${fecha}: ${nota}`].filter(Boolean).join(" | ") });
                       if (window.confirm("¿Avisarle al cliente por WhatsApp que no lo encontramos?")) {
-                        window.open(linkWhatsApp(p.cliente_telefono, mensajeNoTeEncontramos(p)), "_blank");
+                        const texto = mensajeNoTeEncontramos(p);
+                        await copiarYAbrir(p.cliente_telefono, texto, linkWhatsApp(p.cliente_telefono, texto));
                       }
                     }
                   }}

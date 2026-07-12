@@ -103,6 +103,30 @@ export function montoACobrar(pedido) {
   return Number(pedido.monto_pedido) + Number(pedido.costo_envio) + envioReintento(pedido);
 }
 
+// Localidad de referencia por zona (la partido/localidad real, no el nombre
+// comercial de la zona) — para geocodificar bien en Maps cuando la dirección
+// se cargó sin localidad (ej. "29 n234"). Basado en la zona ya seleccionada
+// del pedido, no en adivinar por texto libre.
+const LOCALIDAD_POR_ZONA = {
+  1: "La Plata", // Casco urbano
+  2: "La Plata", // Los Hornos / Tolosa / Ringuelet (barrios de La Plata)
+  3: "La Plata", // City Bell / Gonnet (dentro del partido de La Plata)
+  4: "Berisso",  // Berisso / Ensenada / Punta Lara
+};
+
+// Las direcciones se cargan sin localidad muchas veces, y sin ese contexto
+// Google puede geocodificar en cualquier parte del mundo (ej. terminó en
+// España). Le agregamos localidad/país para la búsqueda en Maps —no toca la
+// dirección que ve el cliente. Si el texto ya menciona una localidad conocida,
+// no la duplicamos; si no, usamos la de la zona del pedido.
+export function direccionParaMapa(direccion, zona) {
+  if (/la plata|berisso|ensenada|punta lara|city bell|gonnet|tolosa|ringuelet|hornos/i.test(direccion)) {
+    return `${direccion}, Argentina`;
+  }
+  const localidad = LOCALIDAD_POR_ZONA[zona?.id] || "La Plata";
+  return `${direccion}, ${localidad}, Argentina`;
+}
+
 // Links de Google Maps con las paradas en orden. Máx. 9 paradas por link;
 // si hay más se encadenan links, cada uno arrancando donde terminó el anterior.
 export function linksGoogleMaps(direccionLocal, paradas) {
@@ -111,9 +135,10 @@ export function linksGoogleMaps(direccionLocal, paradas) {
   let origen = direccionLocal;
   for (let i = 0; i < paradas.length; i += 9) {
     const tramo = paradas.slice(i, i + 9);
-    const puntos = [origen, ...tramo.map((p) => p.direccion)];
+    const geocodificadas = tramo.map((p) => direccionParaMapa(p.direccion, p.zona));
+    const puntos = [origen, ...geocodificadas];
     links.push("https://www.google.com/maps/dir/" + puntos.map(encodeURIComponent).join("/"));
-    origen = tramo[tramo.length - 1].direccion;
+    origen = geocodificadas[geocodificadas.length - 1];
   }
   return links;
 }
