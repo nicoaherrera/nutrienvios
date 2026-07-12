@@ -3,12 +3,15 @@ import { api } from "../api.js";
 import {
   dinero, hoyISO, normalizarTelefono, costoEnvio, motivoEnvioGratis, esQuintaCompra,
   validarPedido, validarCupon, esClienteNuevo, textoConfirmacionWhatsApp, idCorto,
+  componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
 } from "../logic.js";
 
 const VACIO = {
-  cliente_nombre: "",
+  nombre: "",
+  apellido: "",
   cliente_telefono: "",
-  direccion: "",
+  calle: "",
+  numero: "",
   entre_calles: "",
   referencia: "",
   zona_id: "",
@@ -49,6 +52,8 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
       setForm({
         ...VACIO,
         ...Object.fromEntries(Object.entries(p).filter(([k]) => k in VACIO)),
+        ...separarNombreCompleto(p.cliente_nombre),
+        ...separarDireccion(p.direccion),
         referencia: p.referencia || "",
         entre_calles: p.entre_calles || "",
         cupon_usado: p.cupon_usado || "",
@@ -72,6 +77,8 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
     return () => clearTimeout(timerTel.current);
   }, [form.cliente_telefono, pedidoId]);
 
+  const clienteNombre = componerNombreCompleto(form.nombre, form.apellido);
+  const direccion = componerDireccion(form.calle, form.numero);
   const zona = zonas.find((z) => z.id === Number(form.zona_id));
   const monto = Number(form.monto_pedido) || 0;
   const motivoGratis = monto > 0 ? motivoEnvioGratis(monto, config, previos) : null;
@@ -97,20 +104,25 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
   const campo = (k) => (e) =>
     setForm((f) => ({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
 
-  const completo = form.cliente_nombre && form.cliente_telefono && form.direccion && zona && monto > 0 && form.fecha_entrega;
+  const completo = form.nombre && form.cliente_telefono && direccion && zona && monto > 0 && form.fecha_entrega;
 
   async function guardar() {
     setGuardando(true);
     setError(null);
     try {
       const body = {
-        ...form,
+        cliente_nombre: clienteNombre,
+        direccion,
         cliente_telefono: normalizarTelefono(form.cliente_telefono),
         zona_id: Number(form.zona_id),
         monto_pedido: monto,
         costo_envio: envio,
         envio_gratis: gratis,
         motivo_envio_gratis: motivoGratis,
+        tiene_refrigerados: form.tiene_refrigerados,
+        incluye_cooler: form.incluye_cooler,
+        forma_pago: form.forma_pago,
+        fecha_entrega: form.fecha_entrega,
         cupon_usado: form.cupon_usado.trim() || null,
         referencia: form.referencia.trim() || null,
         entre_calles: form.entre_calles.trim() || null,
@@ -156,8 +168,16 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
     <div className="tarjeta">
       <h2>{editando ? "✏️ Editar pedido" : "➕ Nuevo pedido"}</h2>
 
-      <label>Cliente</label>
-      <input value={form.cliente_nombre} onChange={campo("cliente_nombre")} placeholder="Nombre y apellido" />
+      <div className="fila">
+        <div>
+          <label>Nombre</label>
+          <input value={form.nombre} onChange={campo("nombre")} placeholder="Ana" />
+        </div>
+        <div>
+          <label>Apellido</label>
+          <input value={form.apellido} onChange={campo("apellido")} placeholder="Pérez" />
+        </div>
+      </div>
 
       <label>
         Teléfono {clienteNuevo && <span className="badge nuevo">CLIENTE NUEVO</span>}
@@ -165,12 +185,20 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
       </label>
       <input value={form.cliente_telefono} onChange={campo("cliente_telefono")} inputMode="tel" placeholder="221 555 0000" />
 
-      <label>Dirección (siempre con localidad)</label>
-      <input value={form.direccion} onChange={campo("direccion")} placeholder="Montevideo 456, Berisso" />
+      <div className="fila">
+        <div>
+          <label>Calle</label>
+          <input value={form.calle} onChange={campo("calle")} placeholder="9 o Montevideo" />
+        </div>
+        <div>
+          <label>Número</label>
+          <input value={form.numero} onChange={campo("numero")} inputMode="numeric" placeholder="136" />
+        </div>
+      </div>
 
       <label>Entre calles</label>
       <input value={form.entre_calles} onChange={campo("entre_calles")} placeholder="15 y 16" />
-      <p className="mini">Clave para que el mapa geolocalice bien — pedilo siempre, como en el WhatsApp Business.</p>
+      <p className="mini">Calle, número y entre calles: los tres completos, así el mapa geolocaliza bien (como en el WhatsApp Business).</p>
 
       <label>Referencia de la dirección</label>
       <input value={form.referencia} onChange={campo("referencia")} placeholder="timbre roto, casa con rejas verdes…" />

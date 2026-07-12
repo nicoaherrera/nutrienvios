@@ -74,6 +74,8 @@ export default function Recorrido({ config }) {
           <p className="mini">
             💡 Una vez adentro de Maps, tocá <strong>"Optimizar orden"</strong> (ícono de reordenar, arriba de la lista de
             paradas) para que arme la ruta más corta según la distancia real — el orden de esta pantalla es solo por zona.
+            Como el orden real puede terminar distinto, "Avisar que voy en camino" está disponible en cualquier parada, no
+            solo en la marcada como próxima.
           </p>
         )}
       </div>
@@ -112,7 +114,7 @@ export default function Recorrido({ config }) {
               <div className="mini">🔁 Revisita: {dinero(envioReintento(p))} de envío extra (ya cobrado por la tienda)</div>
             )}
 
-            {esProxima && (
+            {!entregado && (
               <a
                 className="botonlink wsp"
                 href={linkAvisoEnCamino(p, demoraEstimada(p, ultima))}

@@ -103,6 +103,43 @@ export function montoACobrar(pedido) {
   return Number(pedido.monto_pedido) + Number(pedido.costo_envio) + envioReintento(pedido);
 }
 
+// El formulario carga la dirección en dos campos (Calle + Número) para que
+// nunca falte una parte y Google la geocodifique bien — acá se combinan en el
+// único string que se guarda. Calle numérica ("9") → "Calle 9 N° 136";
+// calle con nombre ("Montevideo") → "Montevideo 136".
+export function componerDireccion(calle, numero) {
+  const c = (calle || "").trim();
+  const n = (numero || "").trim();
+  if (!c || !n) return "";
+  return /^\d+$/.test(c) ? `Calle ${c} N° ${n}` : `${c} ${n}`;
+}
+
+// Inverso de componerDireccion, para precargar Calle/Número al editar un
+// pedido ya guardado (incluye los cargados antes de separar los campos).
+export function separarDireccion(direccion) {
+  const d = direccion || "";
+  const conN = d.match(/^calle\s+(\S+)\s*n[°.]?\s*(\d+)$/i);
+  if (conN) return { calle: conN[1], numero: conN[2] };
+  const conNombre = d.match(/^(.+?)\s+(\d+)$/);
+  if (conNombre) return { calle: conNombre[1], numero: conNombre[2] };
+  return { calle: d, numero: "" };
+}
+
+// Mismo motivo que Calle/Número: dos campos (Nombre + Apellido) para que
+// siempre quede en el mismo orden, sin importar quién de la tienda lo carga.
+export function componerNombreCompleto(nombre, apellido) {
+  return [nombre, apellido].map((s) => (s || "").trim()).filter(Boolean).join(" ");
+}
+
+// Inverso, para precargar Nombre/Apellido al editar un pedido ya guardado
+// (incluye los cargados antes de separar los campos, con nombres compuestos:
+// el primer espacio separa el nombre del resto, que va todo a apellido).
+export function separarNombreCompleto(nombreCompleto) {
+  const partes = (nombreCompleto || "").trim().split(/\s+/).filter(Boolean);
+  if (partes.length <= 1) return { nombre: partes[0] || "", apellido: "" };
+  return { nombre: partes[0], apellido: partes.slice(1).join(" ") };
+}
+
 // Localidad de referencia por zona (la partido/localidad real, no el nombre
 // comercial de la zona) — para geocodificar bien en Maps cuando la dirección
 // se cargó sin localidad (ej. "29 n234"). Basado en la zona ya seleccionada

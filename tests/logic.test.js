@@ -9,6 +9,7 @@ import {
   mensajeNoTeEncontramos, mensajeReprogramado, mensajeNoEstabaReprogramado,
   esQuintaCompra, motivoEnvioGratis, agregarClientes, mensajeReactivacion, linkReactivacion,
   textoResenaWhatsApp, liquidacionCSV, direccionParaMapa, textoConfirmacionWhatsApp,
+  componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
 } from "../src/logic.js";
 
 const config = {
@@ -148,6 +149,31 @@ test("dirección para Maps: usa la localidad de la zona del pedido, no siempre L
   assert.equal(direccionParaMapa("Calle 5, La Plata", zonas.casco), "Calle 5, La Plata, Argentina");
   // con "entre calles" cargado, es la pista más confiable para geocodificar
   assert.equal(direccionParaMapa("29 n234", zonas.casco, "15 y 16"), "Calle 29 N° 234 entre 15 y 16, La Plata, Argentina");
+});
+
+test("componer/separar dirección: Calle + Número en dos campos del form, ida y vuelta", () => {
+  assert.equal(componerDireccion("9", "136"), "Calle 9 N° 136");
+  assert.equal(componerDireccion("Montevideo", "456"), "Montevideo 456");
+  assert.equal(componerDireccion("9", ""), ""); // incompleto: no arma nada raro
+  assert.equal(componerDireccion("", "136"), "");
+
+  assert.deepEqual(separarDireccion("Calle 9 N° 136"), { calle: "9", numero: "136" });
+  assert.deepEqual(separarDireccion("Montevideo 456"), { calle: "Montevideo", numero: "456" });
+  // direcciones viejas cargadas como texto libre, sin separador claro
+  assert.deepEqual(separarDireccion("cantilo 1234"), { calle: "cantilo", numero: "1234" });
+  assert.deepEqual(separarDireccion(""), { calle: "", numero: "" });
+});
+
+test("componer/separar nombre completo: Nombre + Apellido en dos campos, siempre en el mismo orden", () => {
+  assert.equal(componerNombreCompleto("Ana", "Pérez"), "Ana Pérez");
+  assert.equal(componerNombreCompleto("Ana", ""), "Ana");
+  assert.equal(componerNombreCompleto("", "Pérez"), "Pérez");
+
+  assert.deepEqual(separarNombreCompleto("Ana Pérez"), { nombre: "Ana", apellido: "Pérez" });
+  assert.deepEqual(separarNombreCompleto("Ana"), { nombre: "Ana", apellido: "" });
+  // apellido compuesto: todo lo que sigue al primer nombre
+  assert.deepEqual(separarNombreCompleto("Juan Carlos Pérez"), { nombre: "Juan", apellido: "Carlos Pérez" });
+  assert.deepEqual(separarNombreCompleto(""), { nombre: "", apellido: "" });
 });
 
 test("dirección para Maps: expande la numeración pegada de La Plata (\"9 n136\") a formato que Google resuelve bien", () => {
