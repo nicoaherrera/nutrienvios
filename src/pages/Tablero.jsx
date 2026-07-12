@@ -121,7 +121,7 @@ export default function Tablero({ config, navegar }) {
         <span className={`badge estado-${p.estado}`}>{p.estado.replace("_", " ")}</span>
       </div>
       <div className="mini">
-        📍 {p.direccion} · {p.zona?.nombre} · {dinero(p.monto_pedido)} + envío {p.envio_gratis ? "$0" : dinero(p.costo_envio)}
+        📍 {p.direccion}{p.entre_calles && ` (entre ${p.entre_calles})`} · {p.zona?.nombre} · {dinero(p.monto_pedido)} + envío {p.envio_gratis ? "$0" : dinero(p.costo_envio)}
         {envioReintento(p) > 0 && <> + 🔁 revisita {dinero(envioReintento(p))}</>} · {nombreFormaPago(p.forma_pago)}
         {" · "}{p.pago_recibido ? "✅ pago recibido" : "⏳ pago pendiente"}
       </div>

@@ -118,13 +118,15 @@ const LOCALIDAD_POR_ZONA = {
 // Google puede geocodificar en cualquier parte del mundo (ej. terminó en
 // España). Le agregamos localidad/país para la búsqueda en Maps —no toca la
 // dirección que ve el cliente. Si el texto ya menciona una localidad conocida,
-// no la duplicamos; si no, usamos la de la zona del pedido.
-export function direccionParaMapa(direccion, zona) {
+// no la duplicamos; si no, usamos la de la zona del pedido. El "entre calles"
+// (si se cargó) es la pista más confiable para geocodificar bien en Argentina.
+export function direccionParaMapa(direccion, zona, entreCalles) {
+  const conEntreCalles = entreCalles ? `${direccion} entre ${entreCalles}` : direccion;
   if (/la plata|berisso|ensenada|punta lara|city bell|gonnet|tolosa|ringuelet|hornos/i.test(direccion)) {
-    return `${direccion}, Argentina`;
+    return `${conEntreCalles}, Argentina`;
   }
   const localidad = LOCALIDAD_POR_ZONA[zona?.id] || "La Plata";
-  return `${direccion}, ${localidad}, Argentina`;
+  return `${conEntreCalles}, ${localidad}, Argentina`;
 }
 
 // Links de Google Maps con las paradas en orden. Máx. 9 paradas por link;
@@ -135,7 +137,7 @@ export function linksGoogleMaps(direccionLocal, paradas) {
   let origen = direccionLocal;
   for (let i = 0; i < paradas.length; i += 9) {
     const tramo = paradas.slice(i, i + 9);
-    const geocodificadas = tramo.map((p) => direccionParaMapa(p.direccion, p.zona));
+    const geocodificadas = tramo.map((p) => direccionParaMapa(p.direccion, p.zona, p.entre_calles));
     const puntos = [origen, ...geocodificadas];
     links.push("https://www.google.com/maps/dir/" + puntos.map(encodeURIComponent).join("/"));
     origen = geocodificadas[geocodificadas.length - 1];
@@ -369,7 +371,7 @@ export function textoConfirmacionWhatsApp(pedido, zona, config) {
     `📅 Entrega: ${new Date(pedido.fecha_entrega + "T00:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} (${zona.dias_entrega})`,
     `💳 Pago: ${nombreFormaPago(pedido.forma_pago)}${pedido.forma_pago !== "efectivo_contra_entrega" && config.datos_pago ? ` — ${config.datos_pago}` : ""}`,
     ``,
-    `📍 ¿Nos confirmás la dirección? ${pedido.direccion}${pedido.referencia ? ` (${pedido.referencia})` : ""}`,
+    `📍 ¿Nos confirmás la dirección? ${pedido.direccion}${pedido.entre_calles ? ` entre ${pedido.entre_calles}` : ""}${pedido.referencia ? ` (${pedido.referencia})` : ""}`,
     `Si hay alguna referencia para encontrar la casa (timbre, color de rejas, etc.), ¡avisanos así el repartidor no se pierde!`,
   ];
   return lineas.join("\n");

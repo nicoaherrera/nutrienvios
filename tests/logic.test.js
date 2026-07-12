@@ -8,7 +8,7 @@ import {
   demoraEstimada, mensajeEnCamino, linkAvisoEnCamino, envioCobradoPorNutridiet,
   mensajeNoTeEncontramos, mensajeReprogramado, mensajeNoEstabaReprogramado,
   esQuintaCompra, motivoEnvioGratis, agregarClientes, mensajeReactivacion, linkReactivacion,
-  textoResenaWhatsApp, liquidacionCSV, direccionParaMapa,
+  textoResenaWhatsApp, liquidacionCSV, direccionParaMapa, textoConfirmacionWhatsApp,
 } from "../src/logic.js";
 
 const config = {
@@ -146,6 +146,22 @@ test("dirección para Maps: usa la localidad de la zona del pedido, no siempre L
   // si el texto ya menciona una localidad, no la duplica ni fuerza la de la zona
   assert.equal(direccionParaMapa("Montevideo 456, Ensenada", zonas.berisso), "Montevideo 456, Ensenada, Argentina");
   assert.equal(direccionParaMapa("Calle 5, La Plata", zonas.casco), "Calle 5, La Plata, Argentina");
+  // con "entre calles" cargado, es la pista más confiable para geocodificar
+  assert.equal(direccionParaMapa("29 n234", zonas.casco, "15 y 16"), "29 n234 entre 15 y 16, La Plata, Argentina");
+});
+
+test("confirmación por WhatsApp: menciona el entre calles cuando está cargado", () => {
+  const pedido = {
+    numero_pedido: 40, cliente_nombre: "Ana", monto_pedido: 60000, costo_envio: 3500,
+    envio_gratis: false, fecha_entrega: "2026-07-15", forma_pago: "transferencia",
+    direccion: "29 n234", entre_calles: "15 y 16", referencia: "rejas negras",
+  };
+  const texto = textoConfirmacionWhatsApp(pedido, zonas.casco, config);
+  assert.match(texto, /29 n234 entre 15 y 16 \(rejas negras\)/);
+
+  // sin entre calles no rompe ni deja espacios raros
+  const sinEntreCalles = textoConfirmacionWhatsApp({ ...pedido, entre_calles: null }, zonas.casco, config);
+  assert.match(sinEntreCalles, /29 n234 \(rejas negras\)/);
 });
 
 test("cancelados y no entregados no aparecen en la liquidación", () => {

@@ -9,6 +9,7 @@ const VACIO = {
   cliente_nombre: "",
   cliente_telefono: "",
   direccion: "",
+  entre_calles: "",
   referencia: "",
   zona_id: "",
   monto_pedido: "",
@@ -49,6 +50,7 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
         ...VACIO,
         ...Object.fromEntries(Object.entries(p).filter(([k]) => k in VACIO)),
         referencia: p.referencia || "",
+        entre_calles: p.entre_calles || "",
         cupon_usado: p.cupon_usado || "",
         notas: p.notas || "",
         zona_id: String(p.zona_id),
@@ -111,6 +113,7 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
         motivo_envio_gratis: motivoGratis,
         cupon_usado: form.cupon_usado.trim() || null,
         referencia: form.referencia.trim() || null,
+        entre_calles: form.entre_calles.trim() || null,
         notas: form.notas.trim() || null,
       };
       if (!editando) body.cliente_nuevo = clienteNuevo;
@@ -164,6 +167,10 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
 
       <label>Dirección (siempre con localidad)</label>
       <input value={form.direccion} onChange={campo("direccion")} placeholder="Montevideo 456, Berisso" />
+
+      <label>Entre calles</label>
+      <input value={form.entre_calles} onChange={campo("entre_calles")} placeholder="15 y 16" />
+      <p className="mini">Clave para que el mapa geolocalice bien — pedilo siempre, como en el WhatsApp Business.</p>
 
       <label>Referencia de la dirección</label>
       <input value={form.referencia} onChange={campo("referencia")} placeholder="timbre roto, casa con rejas verdes…" />

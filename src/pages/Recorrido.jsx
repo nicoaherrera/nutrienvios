@@ -91,7 +91,7 @@ export default function Recorrido({ config }) {
                   : <span className="badge pago">{nombreFormaPago(p.forma_pago)}</span>}
               </span>
             </div>
-            <div className="direccion">📍 {p.direccion}</div>
+            <div className="direccion">📍 {p.direccion}{p.entre_calles && ` (entre ${p.entre_calles})`}</div>
             {p.referencia && <div className="referencia">👉 {p.referencia}</div>}
             {p.notas && <div className="referencia">📝 {p.notas}</div>}
             <div className="mini">{p.zona?.nombre}{p.envio_gratis ? " · envío gratis (lo paga Nutridiet)" : ` · envío ${dinero(p.costo_envio)}`}</div>
@@ -119,7 +119,7 @@ export default function Recorrido({ config }) {
             )}
 
             <div className="acciones">
-              <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://maps.google.com/?q=${encodeURIComponent(direccionParaMapa(p.direccion, p.zona))}`} target="_blank" rel="noreferrer">📍 Mapa</a>
+              <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://maps.google.com/?q=${encodeURIComponent(direccionParaMapa(p.direccion, p.zona, p.entre_calles))}`} target="_blank" rel="noreferrer">📍 Mapa</a>
               <a className="botonlink chico" style={{ width: "auto", marginTop: 0 }} href={`https://wa.me/${p.cliente_telefono.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">💬 WhatsApp</a>
               {!entregado && (
                 <button className="chico secundario" disabled={ocupado === p.id} onClick={() => marcar(p, { pospuesto: !p.pospuesto })}>

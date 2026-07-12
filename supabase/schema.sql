@@ -39,6 +39,7 @@ create table pedidos (
   cliente_nombre text not null,
   cliente_telefono text not null,
   direccion text not null,
+  entre_calles text, -- "15 y 16" — clave para que Maps geolocalice bien, lo pedimos igual que en el WhatsApp Business
   referencia text,
   zona_id int not null references zonas(id),
   monto_pedido int not null,
