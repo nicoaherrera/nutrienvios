@@ -122,7 +122,9 @@ export default function Tablero({ config, navegar }) {
         <span className={`badge estado-${p.estado}`}>{p.estado.replace("_", " ")}</span>
       </div>
       <div className="mini">
-        📍 {p.direccion}{p.entre_calles && ` (entre ${p.entre_calles})`} · {p.zona?.nombre} · {dinero(p.monto_pedido)} + envío {p.envio_gratis ? "$0" : dinero(p.costo_envio)}
+        📍 {p.direccion}{p.entre_calles && ` (entre ${p.entre_calles})`} · {p.zona?.nombre}
+        {p.cantidad_productos != null && <> · 📦 {p.cantidad_productos}{Number(p.cantidad_refrigerados) > 0 && <> (❄️ {p.cantidad_refrigerados})</>}</>}
+        {" · "}{dinero(p.monto_pedido)} + envío {p.envio_gratis ? "$0" : dinero(p.costo_envio)}
         {envioReintento(p) > 0 && <> + 🔁 revisita {dinero(envioReintento(p))}</>} · {nombreFormaPago(p.forma_pago)}
         {" · "}{p.pago_recibido ? "✅ pago recibido" : "⏳ pago pendiente"}
       </div>
@@ -157,11 +159,11 @@ export default function Tablero({ config, navegar }) {
                   className="chico primario"
                   onClick={async () => {
                     const texto = textoCuponWhatsApp(p.cliente_nombre, config);
-                    try { await navigator.clipboard.writeText(texto); } catch { window.prompt("Copiá el mensaje:", texto); }
-                    window.open(`https://wa.me/${p.cliente_telefono}`, "_blank");
+                    try { await navigator.clipboard.writeText(texto); } catch { /* el link ya lleva el texto */ }
+                    window.open(linkWhatsApp(p.cliente_telefono, texto), "_blank");
                   }}
                 >
-                  📋 Copiar y abrir WhatsApp
+                  💬 Enviar por WhatsApp
                 </button>
                 <button className="chico secundario" onClick={() => cuponEnviado(p)}>✅ Enviado</button>
               </span>
@@ -181,11 +183,11 @@ export default function Tablero({ config, navegar }) {
                   className="chico primario"
                   onClick={async () => {
                     const texto = textoResenaWhatsApp(p.cliente_nombre, config);
-                    try { await navigator.clipboard.writeText(texto); } catch { window.prompt("Copiá el mensaje:", texto); }
-                    window.open(`https://wa.me/${p.cliente_telefono}`, "_blank");
+                    try { await navigator.clipboard.writeText(texto); } catch { /* el link ya lleva el texto */ }
+                    window.open(linkWhatsApp(p.cliente_telefono, texto), "_blank");
                   }}
                 >
-                  📋 Copiar y abrir WhatsApp
+                  💬 Enviar por WhatsApp
                 </button>
                 <button className="chico secundario" onClick={() => resenaEnviada(p)}>✅ Enviado</button>
               </span>

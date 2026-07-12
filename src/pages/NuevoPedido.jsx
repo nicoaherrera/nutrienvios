@@ -18,6 +18,8 @@ const VACIO = {
   referencia: "",
   zona_id: "",
   monto_pedido: "",
+  cantidad_productos: "",
+  cantidad_refrigerados: "",
   tiene_refrigerados: false,
   incluye_cooler: false,
   cupon_usado: "",
@@ -59,6 +61,8 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
         referencia: p.referencia || "",
         entre_calles: p.entre_calles || "",
         localidad: p.localidad || "",
+        cantidad_productos: p.cantidad_productos ?? "",
+        cantidad_refrigerados: p.cantidad_refrigerados ?? "",
         cupon_usado: p.cupon_usado || "",
         notas: p.notas || "",
         zona_id: String(p.zona_id),
@@ -90,10 +94,18 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
   const clienteNuevo = previos !== null && esClienteNuevo(previos);
   const quintaCompra = previos !== null && esQuintaCompra(previos);
 
-  const errores = useMemo(
-    () => (zona && monto > 0 ? validarPedido({ monto, zona, tieneRefrigerados: form.tiene_refrigerados }) : []),
-    [zona, monto, form.tiene_refrigerados]
-  );
+  // El flag de cadena de frío se deriva de la cantidad; si no se cargó cantidad
+  // (pedidos viejos), vale lo que ya tenía el pedido.
+  const tieneRefrigerados = form.cantidad_refrigerados !== "" ? Number(form.cantidad_refrigerados) > 0 : form.tiene_refrigerados;
+
+  const errores = useMemo(() => {
+    const es = zona && monto > 0 ? validarPedido({ monto, zona, tieneRefrigerados }) : [];
+    if (form.cantidad_productos !== "" && form.cantidad_refrigerados !== "" &&
+        Number(form.cantidad_refrigerados) > Number(form.cantidad_productos)) {
+      es.push("Los refrigerados no pueden ser más que el total de productos");
+    }
+    return es;
+  }, [zona, monto, tieneRefrigerados, form.cantidad_productos, form.cantidad_refrigerados]);
 
   const warningCupon = useMemo(() => {
     if (!form.cupon_usado.trim()) return null;
@@ -122,7 +134,9 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
         costo_envio: envio,
         envio_gratis: gratis,
         motivo_envio_gratis: motivoGratis,
-        tiene_refrigerados: form.tiene_refrigerados,
+        tiene_refrigerados: tieneRefrigerados,
+        cantidad_productos: form.cantidad_productos !== "" ? Number(form.cantidad_productos) : null,
+        cantidad_refrigerados: form.cantidad_refrigerados !== "" ? Number(form.cantidad_refrigerados) : null,
         incluye_cooler: form.incluye_cooler,
         forma_pago: form.forma_pago,
         fecha_entrega: form.fecha_entrega,
@@ -248,10 +262,19 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
         </div>
       )}
 
-      <div className="check">
-        <input type="checkbox" id="frio" checked={form.tiene_refrigerados} onChange={campo("tiene_refrigerados")} />
-        <label htmlFor="frio" style={{ margin: 0 }}>❄️ Lleva refrigerados (va en conservadora, primera parada de su zona)</label>
+      <div className="fila">
+        <div>
+          <label>📦 Cantidad de productos</label>
+          <input value={form.cantidad_productos} onChange={campo("cantidad_productos")} inputMode="numeric" placeholder="8" />
+        </div>
+        <div>
+          <label>❄️ De esos, refrigerados</label>
+          <input value={form.cantidad_refrigerados} onChange={campo("cantidad_refrigerados")} inputMode="numeric" placeholder="0" />
+        </div>
       </div>
+      {tieneRefrigerados && (
+        <p className="mini">❄️ Lleva refrigerados: va en conservadora, primera parada de su zona.</p>
+      )}
       <div className="check">
         <input type="checkbox" id="cooler" checked={form.incluye_cooler} onChange={campo("incluye_cooler")} />
         <label htmlFor="cooler" style={{ margin: 0 }}>🧊 Incluye cooler tote (upsell aceptado)</label>

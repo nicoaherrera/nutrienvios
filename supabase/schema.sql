@@ -48,6 +48,8 @@ create table pedidos (
   envio_gratis boolean not null default false,
   motivo_envio_gratis text check (motivo_envio_gratis in ('monto_minimo', 'fidelizacion')), -- por qué fue gratis, para mostrarlo distinto en el Tablero
   tiene_refrigerados boolean not null default false,
+  cantidad_productos int,    -- cuántos productos lleva el pedido (para armar y controlar la carga)
+  cantidad_refrigerados int, -- cuántos de esos van refrigerados (conservadora)
   incluye_cooler boolean not null default false,
   cliente_nuevo boolean not null default false,
   cupon_usado text,

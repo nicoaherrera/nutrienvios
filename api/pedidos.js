@@ -5,6 +5,7 @@ const SELECT = "select=*,zona:zonas(*)";
 const CAMPOS_PEDIDO = [
   "fecha_entrega", "cliente_nombre", "cliente_telefono", "direccion", "entre_calles", "localidad", "referencia",
   "zona_id", "monto_pedido", "costo_envio", "envio_gratis", "motivo_envio_gratis", "tiene_refrigerados",
+  "cantidad_productos", "cantidad_refrigerados",
   "incluye_cooler", "cliente_nuevo", "cupon_usado", "forma_pago", "pago_recibido",
   "estado", "notas", "cupon_enviado_at", "resena_enviada_at", "pospuesto", "envio_reintento", "orden_ruta",
 ];

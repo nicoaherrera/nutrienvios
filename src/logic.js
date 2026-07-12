@@ -432,7 +432,7 @@ export function textoConfirmacionWhatsApp(pedido, zona, config) {
   const lineas = [
     `¡Hola ${pedido.cliente_nombre}! Te confirmamos tu pedido ${idCorto(pedido)} de Nutridiet Market 🌱`,
     ``,
-    `🧾 Mercadería: ${dinero(pedido.monto_pedido)}${pedido.cupon_usado ? ` (con cupón ${pedido.cupon_usado} aplicado)` : ""}`,
+    `🧾 Mercadería: ${dinero(pedido.monto_pedido)}${pedido.cantidad_productos != null ? ` (${pedido.cantidad_productos} producto${pedido.cantidad_productos === 1 ? "" : "s"})` : ""}${pedido.cupon_usado ? ` (con cupón ${pedido.cupon_usado} aplicado)` : ""}`,
     `🚚 Envío (${zona.nombre}): ${pedido.envio_gratis ? "GRATIS 🎉" : dinero(pedido.costo_envio)}`,
     `💰 TOTAL: ${dinero(total)}`,
     ``,

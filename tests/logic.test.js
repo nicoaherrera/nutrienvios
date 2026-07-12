@@ -252,6 +252,13 @@ test("confirmación por WhatsApp: menciona el entre calles cuando está cargado"
   // sin entre calles no rompe ni deja espacios raros
   const sinEntreCalles = textoConfirmacionWhatsApp({ ...pedido, entre_calles: null }, zonas.casco, config);
   assert.match(sinEntreCalles, /29 n234 \(rejas negras\)/);
+
+  // con cantidad de productos la menciona junto a la mercadería
+  const conCantidad = textoConfirmacionWhatsApp({ ...pedido, cantidad_productos: 8 }, zonas.casco, config);
+  assert.match(conCantidad, /Mercadería: \$60\.000 \(8 productos\)/);
+  const unProducto = textoConfirmacionWhatsApp({ ...pedido, cantidad_productos: 1 }, zonas.casco, config);
+  assert.match(unProducto, /\(1 producto\)/);
+  assert.ok(!texto.includes("producto"), "sin cantidad cargada no la menciona");
 });
 
 test("cancelados y no entregados no aparecen en la liquidación", () => {

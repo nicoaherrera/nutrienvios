@@ -135,6 +135,12 @@ export default function Recorrido({ config }) {
             {p.referencia && <div className="referencia">👉 {p.referencia}</div>}
             {p.notas && <div className="referencia">📝 {p.notas}</div>}
             <div className="mini">{p.zona?.nombre}{p.envio_gratis ? " · envío gratis (lo paga Nutridiet)" : ` · envío ${dinero(p.costo_envio)}`}</div>
+            {p.cantidad_productos != null && (
+              <div className="mini">
+                📦 {p.cantidad_productos} producto{p.cantidad_productos === 1 ? "" : "s"}
+                {Number(p.cantidad_refrigerados) > 0 && <> · ❄️ {p.cantidad_refrigerados} refrigerado{Number(p.cantidad_refrigerados) === 1 ? "" : "s"} en conservadora</>}
+              </div>
+            )}
 
             {contraEntrega && !entregado && (
               <div className="cobrar">
