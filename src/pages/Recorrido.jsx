@@ -70,6 +70,12 @@ export default function Recorrido({ config }) {
             🗺️ Abrir ruta en Google Maps{links.length > 1 ? ` (tramo ${i + 1} de ${links.length})` : ""}
           </a>
         ))}
+        {links.length > 0 && (
+          <p className="mini">
+            💡 Una vez adentro de Maps, tocá <strong>"Optimizar orden"</strong> (ícono de reordenar, arriba de la lista de
+            paradas) para que arme la ruta más corta según la distancia real — el orden de esta pantalla es solo por zona.
+          </p>
+        )}
       </div>
 
       {orden.length === 0 && <div className="vacio">No hay entregas para este día 🎉</div>}

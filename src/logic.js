@@ -114,6 +114,15 @@ const LOCALIDAD_POR_ZONA = {
   4: "Berisso",  // Berisso / Ensenada / Punta Lara
 };
 
+// La calle numerada de La Plata se carga muchas veces pegada y abreviada
+// ("29 n234"), y ese formato confunde el geocoder de Google (llegó a mandar
+// dos pedidos distintos al mismo punto, o a España). "Calle 29 N° 234" es el
+// formato que Google sí resuelve bien en el trazado de La Plata.
+function expandirNumeracion(direccion) {
+  const m = direccion.match(/^(\d{1,3})\s*n\.?°?\s*(\d{1,5})\b(.*)$/i);
+  return m ? `Calle ${m[1]} N° ${m[2]}${m[3]}` : direccion;
+}
+
 // Las direcciones se cargan sin localidad muchas veces, y sin ese contexto
 // Google puede geocodificar en cualquier parte del mundo (ej. terminó en
 // España). Le agregamos localidad/país para la búsqueda en Maps —no toca la
@@ -121,7 +130,8 @@ const LOCALIDAD_POR_ZONA = {
 // no la duplicamos; si no, usamos la de la zona del pedido. El "entre calles"
 // (si se cargó) es la pista más confiable para geocodificar bien en Argentina.
 export function direccionParaMapa(direccion, zona, entreCalles) {
-  const conEntreCalles = entreCalles ? `${direccion} entre ${entreCalles}` : direccion;
+  const expandida = expandirNumeracion(direccion);
+  const conEntreCalles = entreCalles ? `${expandida} entre ${entreCalles}` : expandida;
   if (/la plata|berisso|ensenada|punta lara|city bell|gonnet|tolosa|ringuelet|hornos/i.test(direccion)) {
     return `${conEntreCalles}, Argentina`;
   }
