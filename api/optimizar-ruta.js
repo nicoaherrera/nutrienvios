@@ -1,10 +1,12 @@
 import { rol, sb, fail } from "./_lib.js";
-import { direccionParaMapa } from "../src/logic.js";
+import { direccionParaMapa, ordenRutaAbierta } from "../src/logic.js";
 
 // Optimiza el orden de las paradas del día con la Routes API de Google
 // (computeRoutes + optimizeWaypointOrder): distancia real de manejo, no zonas.
 // La API key vive acá (GOOGLE_MAPS_API_KEY), nunca en el frontend.
 // Guarda el resultado en pedidos.orden_ruta; el Recorrido lo respeta al ordenar.
+// volverAlLocal=false: mismo circuito pero recorrido en el sentido que deja
+// la parada más lejana para el final, descontando el tramo de regreso.
 export default async function handler(req, res) {
   const quien = rol(req);
   if (!quien) return res.status(401).json({ error: "Token inválido" });
@@ -17,7 +19,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const { fecha } = req.body || {};
+  const { fecha, volverAlLocal = true } = req.body || {};
   if (!fecha) return res.status(400).json({ error: "Falta fecha" });
 
   try {
@@ -42,7 +44,8 @@ export default async function handler(req, res) {
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": "routes.optimizedIntermediateWaypointIndex,routes.duration,routes.distanceMeters",
+        "X-Goog-FieldMask":
+          "routes.optimizedIntermediateWaypointIndex,routes.duration,routes.distanceMeters,routes.legs.duration,routes.legs.distanceMeters",
       },
       body: JSON.stringify({
         origin: local,
@@ -62,9 +65,19 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: `Google Routes API: ${detalle}` });
     }
 
-    const indices = data.routes?.[0]?.optimizedIntermediateWaypointIndex;
+    const ruta = data.routes?.[0];
+    let indices = ruta?.optimizedIntermediateWaypointIndex;
     if (!Array.isArray(indices) || indices.length !== pendientes.length) {
       return res.status(502).json({ error: "Google no devolvió un orden optimizado" });
+    }
+
+    let metros = Number(ruta.distanceMeters || 0);
+    let segundos = parseInt(ruta.duration || "0", 10);
+    if (!volverAlLocal && Array.isArray(ruta.legs) && ruta.legs.length === indices.length + 1) {
+      const abierta = ordenRutaAbierta(indices, ruta.legs);
+      indices = abierta.indices;
+      metros -= Number(abierta.tramoQuitado?.distanceMeters || 0);
+      segundos -= parseInt(abierta.tramoQuitado?.duration || "0", 10);
     }
 
     // indices[i] = índice original de la parada que va en la posición i
@@ -77,9 +90,12 @@ export default async function handler(req, res) {
       )
     );
 
-    const km = data.routes?.[0]?.distanceMeters ? Math.round(data.routes[0].distanceMeters / 100) / 10 : null;
-    const duracion = data.routes?.[0]?.duration || null; // ej. "1860s"
-    return res.status(200).json({ ok: true, paradas: pendientes.length, km, duracion });
+    return res.status(200).json({
+      ok: true,
+      paradas: pendientes.length,
+      km: metros ? Math.round(metros / 100) / 10 : null,
+      duracion: segundos ? `${segundos}s` : null,
+    });
   } catch (err) {
     return fail(res, err);
   }

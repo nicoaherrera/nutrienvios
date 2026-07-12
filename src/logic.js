@@ -182,6 +182,21 @@ export function direccionParaMapa(direccion, zona, localidad) {
   return `${normalizada}, ${loc}, Argentina`;
 }
 
+// Para terminar el reparto lejos (sin volver al local): de la vuelta circular
+// óptima que devuelve Google se quita el tramo de regreso. Si el tramo
+// local→primera parada es más largo que el de última→local, conviene recorrer
+// el circuito al revés: se arranca por la parada más cercana y se termina en
+// la más lejana. legs[i] son los tramos en el orden optimizado (n paradas ⇒
+// n+1 tramos, el último es la vuelta al local).
+export function ordenRutaAbierta(indices, legs) {
+  const primerTramo = Number(legs[0]?.distanceMeters ?? 0);
+  const ultimoTramo = Number(legs[legs.length - 1]?.distanceMeters ?? 0);
+  if (primerTramo > ultimoTramo) {
+    return { indices: [...indices].reverse(), tramoQuitado: legs[0] };
+  }
+  return { indices, tramoQuitado: legs[legs.length - 1] };
+}
+
 // Links de Google Maps con las paradas en orden. Máx. 9 paradas por link;
 // si hay más se encadenan links, cada uno arrancando donde terminó el anterior.
 export function linksGoogleMaps(direccionLocal, paradas) {

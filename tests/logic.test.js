@@ -10,6 +10,7 @@ import {
   esQuintaCompra, motivoEnvioGratis, agregarClientes, mensajeReactivacion, linkReactivacion,
   textoResenaWhatsApp, liquidacionCSV, direccionParaMapa, textoConfirmacionWhatsApp,
   componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
+  ordenRutaAbierta,
 } from "../src/logic.js";
 
 const config = {
@@ -113,6 +114,21 @@ test("recorrido optimizado: orden_ruta manda sobre zona/frío; pospuestas igual 
   // sin optimización, el orden clásico por zona sigue igual
   const clasico = ordenarRecorrido([p("lejos", zonas.berisso), p("cerca", zonas.casco)]);
   assert.deepEqual(clasico.map((x) => x.id), ["cerca", "lejos"]);
+});
+
+test("ruta abierta (sin volver al local): invierte el circuito si el tramo de ida es el más largo", () => {
+  // circuito: local → City Bell (8km) → ... → Calle 9 (0.2km) → local
+  // sin vuelta al local conviene al revés: arrancar por Calle 9 y terminar en City Bell
+  const legs = [{ distanceMeters: "8000", duration: "900s" }, { distanceMeters: "3000", duration: "400s" }, { distanceMeters: "200", duration: "60s" }];
+  const invertida = ordenRutaAbierta([2, 0, 1], legs);
+  assert.deepEqual(invertida.indices, [1, 0, 2]);
+  assert.equal(invertida.tramoQuitado.distanceMeters, "8000"); // se ahorra el tramo largo
+
+  // si el circuito ya termina lejos, se mantiene el sentido y se quita la vuelta
+  const legsOk = [{ distanceMeters: "200", duration: "60s" }, { distanceMeters: "3000", duration: "400s" }, { distanceMeters: "8000", duration: "900s" }];
+  const igual = ordenRutaAbierta([2, 0, 1], legsOk);
+  assert.deepEqual(igual.indices, [2, 0, 1]);
+  assert.equal(igual.tramoQuitado.distanceMeters, "8000");
 });
 
 test("cliente nuevo: sin pedidos previos no cancelados", () => {

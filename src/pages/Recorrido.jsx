@@ -45,10 +45,15 @@ export default function Recorrido({ config }) {
   }
 
   async function optimizar() {
+    const vuelve = window.confirm(
+      "¿Al terminar el reparto volvés al local?\n\n" +
+      "Aceptar = SÍ, ruta circular (termina cerca del local)\n" +
+      "Cancelar = NO, la ruta arranca por lo más cercano y termina en la parada más lejana"
+    );
     setOptimizando(true);
     setError(null);
     try {
-      const r = await api.optimizarRuta(fecha);
+      const r = await api.optimizarRuta(fecha, vuelve);
       setResumenRuta(r);
       cargar();
     } catch (e) {
