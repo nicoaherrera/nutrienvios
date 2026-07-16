@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
 import {
   dinero, hoyISO, nombreFormaPago, textoCuponWhatsApp, textoResenaWhatsApp, idCorto,
-  envioReintento, linkWhatsApp, mensajeReprogramado,
+  envioReintento, tarifaDelPedido, linkWhatsApp, mensajeReprogramado,
 } from "../logic.js";
 
 const ESTADOS = ["pendiente", "en_reparto", "entregado", "cancelado"];
@@ -65,7 +65,7 @@ export default function Tablero({ config, navegar }) {
   // Reprograma para mañana; con cargo suma la tarifa de zona como revisita
   // (política: si no había nadie, la nueva visita se cobra, incluso con envío gratis).
   async function reprogramar(p, conCargo) {
-    const extra = conCargo ? Number(p.zona?.tarifa ?? 0) : 0;
+    const extra = conCargo ? tarifaDelPedido(p) : 0;
     if (conCargo && !window.confirm(`Reprogramar para mañana sumando ${dinero(extra)} de revisita, ¿dale?`)) return;
     const d = new Date();
     d.setDate(d.getDate() + 1);

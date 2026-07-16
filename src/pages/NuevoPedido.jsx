@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import {
-  dinero, hoyISO, normalizarTelefono, costoEnvio, motivoEnvioGratis, esQuintaCompra,
+  dinero, hoyISO, normalizarTelefono, motivoEnvioGratis, esQuintaCompra,
+  calcularCostoEnvio, parseTarifario,
   validarPedido, validarCupon, esClienteNuevo, textoConfirmacionWhatsApp, idCorto,
   componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
   BARRIOS_POR_ZONA,
@@ -15,6 +16,7 @@ const VACIO = {
   numero: "",
   entre_calles: "",
   localidad: "",
+  tarifa_manual: "",
   referencia: "",
   zona_id: "",
   monto_pedido: "",
@@ -63,6 +65,7 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
         localidad: p.localidad || "",
         cantidad_productos: p.cantidad_productos ?? "",
         cantidad_refrigerados: p.cantidad_refrigerados ?? "",
+        tarifa_manual: p.tarifa_envio ?? "",
         cupon_usado: p.cupon_usado || "",
         notas: p.notas || "",
         zona_id: String(p.zona_id),
@@ -90,7 +93,12 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
   const monto = Number(form.monto_pedido) || 0;
   const motivoGratis = monto > 0 ? motivoEnvioGratis(monto, config, previos) : null;
   const gratis = Boolean(motivoGratis);
-  const envio = zona && monto > 0 ? costoEnvio(monto, zona, config, previos) : null;
+  // Tarifa por localidad + rango de calle (tarifario editable en Config).
+  // Si no resuelve (localidad/calle fuera de tarifario), la tienda la carga a mano.
+  const tarifario = parseTarifario(config);
+  const tarifaCalculada = form.localidad ? calcularCostoEnvio(form.localidad, form.calle, tarifario) : null;
+  const tarifa = tarifaCalculada ?? (form.tarifa_manual !== "" ? Number(form.tarifa_manual) : null);
+  const envio = tarifa != null && monto > 0 ? (gratis ? 0 : tarifa) : null;
   const clienteNuevo = previos !== null && esClienteNuevo(previos);
   const quintaCompra = previos !== null && esQuintaCompra(previos);
 
@@ -119,7 +127,7 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
   const campo = (k) => (e) =>
     setForm((f) => ({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
 
-  const completo = form.nombre && form.cliente_telefono && direccion && zona && monto > 0 && form.fecha_entrega;
+  const completo = form.nombre && form.cliente_telefono && direccion && zona && monto > 0 && tarifa != null && form.fecha_entrega;
 
   async function guardar() {
     setGuardando(true);
@@ -132,6 +140,7 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
         zona_id: Number(form.zona_id),
         monto_pedido: monto,
         costo_envio: envio,
+        tarifa_envio: tarifa,
         envio_gratis: gratis,
         motivo_envio_gratis: motivoGratis,
         tiene_refrigerados: tieneRefrigerados,
@@ -233,7 +242,7 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
           >
             <option value="">Elegir zona…</option>
             {zonas.map((z) => (
-              <option key={z.id} value={z.id}>{z.nombre} — {dinero(z.tarifa)}</option>
+              <option key={z.id} value={z.id}>{z.nombre}</option>
             ))}
           </select>
         </div>
@@ -252,6 +261,19 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
       <input value={form.monto_pedido} onChange={campo("monto_pedido")} inputMode="numeric" placeholder="60000" />
 
       {zona && <p className="mini">📅 {zona.nombre}: {zona.dias_entrega}{zona.minimo_compra ? ` · mínimo ${dinero(zona.minimo_compra)}` : ""}</p>}
+
+      {form.localidad && tarifaCalculada == null && (
+        <div className="aviso warning">
+          ⚠️ El tarifario no cubre {form.localidad}{form.calle ? ` calle ${form.calle}` : ""} — <strong>consultar precio</strong> y cargarlo acá:
+          <input
+            value={form.tarifa_manual}
+            onChange={campo("tarifa_manual")}
+            inputMode="numeric"
+            placeholder="Envío ($)"
+            style={{ marginTop: 6 }}
+          />
+        </div>
+      )}
 
       {envio !== null && (
         <div className={`aviso ${gratis ? "ok" : ""}`} style={!gratis ? { background: "var(--verde-claro)", border: "1px solid #c4dfc6" } : undefined}>

@@ -7,6 +7,7 @@ import {
   semanaPasada, gananciaRepartidor, idCorto, siguienteParada, ultimaEntregada,
   demoraEstimada, mensajeEnCamino, linkAvisoEnCamino, envioCobradoPorNutridiet,
   mensajeReprogramado, mensajeNoEstabaReprogramado, mensajeNoTeEncontramos, mensajeCancelado,
+  calcularCostoEnvio, parseTarifario, TARIFARIO_INICIAL, tarifaDelPedido,
   esQuintaCompra, motivoEnvioGratis, agregarClientes, mensajeReactivacion, linkReactivacion,
   textoResenaWhatsApp, liquidacionCSV, direccionParaMapa, textoConfirmacionWhatsApp,
   componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
@@ -129,6 +130,91 @@ test("ruta abierta (sin volver al local): invierte el circuito si el tramo de id
   const igual = ordenRutaAbierta([2, 0, 1], legsOk);
   assert.deepEqual(igual.indices, [2, 0, 1]);
   assert.equal(igual.tramoQuitado.distanceMeters, "8000");
+});
+
+test("tarifario: localidades de precio fijo, la calle no importa", () => {
+  assert.equal(calcularCostoEnvio("Gonnet", "501"), 6500);
+  assert.equal(calcularCostoEnvio("City Bell", "Cantilo"), 7000);
+  assert.equal(calcularCostoEnvio("Villa Elisa", ""), 8000);
+  assert.equal(calcularCostoEnvio("Melchor Romero", "520"), 7000);
+  assert.equal(calcularCostoEnvio("Abasto", null), 8000);
+  assert.equal(calcularCostoEnvio("Lisandro Olmos", "44"), 8000);
+  assert.equal(calcularCostoEnvio("Ensenada", "Ortiz de Rosas"), 7000);
+  assert.equal(calcularCostoEnvio("Berisso", "Montevideo"), 7000);
+  assert.equal(calcularCostoEnvio("Punta Lara", "Almirante Brown"), 7800);
+  // case-insensitive
+  assert.equal(calcularCostoEnvio("berisso", "x"), 7000);
+});
+
+test("tarifario La Plata: casco base y todos los límites de los tramos de expansión", () => {
+  const lp = (calle) => calcularCostoEnvio("La Plata", calle);
+  // casco por defecto
+  assert.equal(lp("1"), 3300);
+  assert.equal(lp("50"), 3300);
+  assert.equal(lp("72"), 3300);
+  assert.equal(lp("114"), 3300); // entre expansiones: cae al casco
+  // expansión este/norte: 115-121 y 122-127
+  assert.equal(lp("115"), 3900);
+  assert.equal(lp("121"), 3900);
+  assert.equal(lp("122"), 4500);
+  assert.equal(lp("127"), 4500);
+  assert.equal(lp("128"), 3300); // fuera del tramo: base
+  // expansión sur/oeste: 73-79, 80-89, 90-99
+  assert.equal(lp("73"), 3900);
+  assert.equal(lp("79"), 3900);
+  assert.equal(lp("80"), 4500);
+  assert.equal(lp("89"), 4500);
+  assert.equal(lp("90"), 5200);
+  assert.equal(lp("99"), 5200);
+  assert.equal(lp("100"), 3300);
+  // diagonal o calle sin número interpretable: casco base
+  assert.equal(lp("Diag 74"), 3300);
+});
+
+test("tarifario Los Hornos / Tolosa / Ringuelet: límites de tramos y fuera de rango = consultar", () => {
+  const lh = (calle) => calcularCostoEnvio("Los Hornos", calle);
+  assert.equal(lh("131"), 3900);
+  assert.equal(lh("136"), 3900);
+  assert.equal(lh("137"), 4500);
+  assert.equal(lh("142"), 4500);
+  assert.equal(lh("143"), 5200);
+  assert.equal(lh("148"), 5200);
+  assert.equal(lh("149"), 5800);
+  assert.equal(lh("154"), 5800);
+  assert.equal(lh("155"), 6500);
+  assert.equal(lh("160"), 6500);
+  assert.equal(lh("161"), null); // fuera de todos los tramos, sin base → consultar
+  assert.equal(lh("130"), null);
+
+  assert.equal(calcularCostoEnvio("Tolosa", "526"), 3900);
+  assert.equal(calcularCostoEnvio("Tolosa", "531"), 3900);
+  assert.equal(calcularCostoEnvio("Tolosa", "521"), 4500);
+  assert.equal(calcularCostoEnvio("Tolosa", "525"), 4500);
+  assert.equal(calcularCostoEnvio("Tolosa", "532"), null);
+
+  assert.equal(calcularCostoEnvio("Ringuelet", "509"), 5200);
+  assert.equal(calcularCostoEnvio("Ringuelet", "520"), 5200);
+  assert.equal(calcularCostoEnvio("Ringuelet", "508"), null);
+});
+
+test("tarifario: casos borde — localidad desconocida o vacía, y tarifario editado desde config", () => {
+  assert.equal(calcularCostoEnvio("Marte", "10"), null);
+  assert.equal(calcularCostoEnvio("", "10"), null);
+  assert.equal(calcularCostoEnvio(null, "10"), null);
+
+  // parseTarifario: usa el JSON de config si está sano, cae al inicial si no
+  const editado = { fijos: { Berisso: 9999 }, rangos: {} };
+  assert.equal(parseTarifario({ tarifario: JSON.stringify(editado) }).fijos.Berisso, 9999);
+  assert.equal(calcularCostoEnvio("Berisso", "x", editado), 9999);
+  assert.deepEqual(parseTarifario({ tarifario: "{json roto" }), TARIFARIO_INICIAL);
+  assert.deepEqual(parseTarifario({}), TARIFARIO_INICIAL);
+});
+
+test("tarifa del pedido: usa la calculada al cargarlo, con fallback a la tarifa plana de la zona", () => {
+  assert.equal(tarifaDelPedido({ tarifa_envio: 5200, zona: zonas.casco }), 5200);
+  assert.equal(tarifaDelPedido({ zona: zonas.berisso }), 6500); // pedido viejo sin tarifa calculada
+  // la liquidación de un envío gratis paga la tarifa de la dirección, no la plana
+  assert.equal(gananciaRepartidor({ envio_gratis: true, costo_envio: 0, tarifa_envio: 5200, zona: zonas.casco }), 5200);
 });
 
 test("cliente nuevo: sin pedidos previos no cancelados", () => {

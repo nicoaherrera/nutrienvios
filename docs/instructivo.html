@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8" />
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    color: #1f2a1f;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; color: #2e5e2e; }
+  .subt { color: #5a6b5a; margin: 0 0 18px; font-size: 13px; }
+  h2 {
+    font-size: 15px; color: #fff; background: #2e5e2e;
+    padding: 6px 10px; border-radius: 6px; margin: 22px 0 10px;
+  }
+  h3 { font-size: 13px; color: #2e5e2e; margin: 14px 0 4px; }
+  .caja {
+    background: #f2f7f0; border: 1px solid #cfe3cc; border-radius: 8px;
+    padding: 10px 14px; margin: 8px 0;
+  }
+  .link { font-family: "Courier New", monospace; font-size: 11.5px; word-break: break-all; color: #14532d; }
+  ol, ul { margin: 4px 0 8px; padding-left: 20px; }
+  li { margin: 3px 0; }
+  .rol { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; color: #fff; }
+  .rol.tienda { background: #2e5e2e; }
+  .rol.repartidor { background: #1565c0; }
+  .nota {
+    background: #fff8e1; border: 1px solid #f2e0a0; border-radius: 6px;
+    padding: 8px 12px; font-size: 11.5px; margin: 8px 0;
+  }
+  .aviso-rojo {
+    background: #fdecea; border: 1px solid #f2c1bd; border-radius: 6px;
+    padding: 8px 12px; font-size: 11.5px; margin: 8px 0;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 11.5px; }
+  td, th { border: 1px solid #d8e3d5; padding: 5px 8px; text-align: left; }
+  th { background: #eef5ec; }
+  .footer { margin-top: 26px; font-size: 10.5px; color: #888; text-align: center; }
+  .pagebreak { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<h1>🥗 Nutridiet Envíos — Instructivo de uso</h1>
+<p class="subt">Guía rápida para la tienda y el repartidor · julio 2026</p>
+
+<div class="caja">
+  <strong>📲 Antes de arrancar: guardá el link en la pantalla de inicio de tu celular</strong>
+  <ol>
+    <li>Abrí tu link (el de más abajo, el que te corresponde) en el navegador del celu.</li>
+    <li><strong>iPhone (Safari):</strong> tocá el botón compartir (el cuadradito con la flecha) → "Agregar a pantalla de inicio".</li>
+    <li><strong>Android (Chrome):</strong> tocá los tres puntitos arriba a la derecha → "Agregar a pantalla de inicio" o "Instalar app".</li>
+    <li>Te va a quedar un ícono como cualquier otra app. No hace falta que vuelvas a escribir ni copiar el link nunca más.</li>
+  </ol>
+</div>
+
+<div class="aviso-rojo">
+  ⚠️ <strong>El link es la llave de acceso</strong> (no hay usuario/contraseña aparte). No lo compartas por fuera de tu rol ni lo mandes a nadie más. Si lo perdés o creés que alguien más lo tiene, avisale a Nico para generar uno nuevo.
+</div>
+
+<h2>🔗 Tus links</h2>
+<table>
+  <tr><th>Rol</th><th>Link</th></tr>
+  <tr>
+    <td><span class="rol tienda">TIENDA</span></td>
+    <td class="link">https://nutridiet-envios.vercel.app/#/tienda/5b1e0a015a5543caa865f63cf75e163d</td>
+  </tr>
+  <tr>
+    <td><span class="rol repartidor">REPARTIDOR</span></td>
+    <td class="link">https://nutridiet-envios.vercel.app/#/reparto/a41866d232b121f7f624f1fff75a761f</td>
+  </tr>
+</table>
+
+<h2><span class="rol tienda">TIENDA</span> — Las 5 secciones</h2>
+
+<h3>📋 Tablero</h3>
+<p>Lo primero que ves al entrar. Pedidos agrupados por día (próximos 14 días) más los atrasados arriba de todo.</p>
+<ul>
+  <li>Cambiá el estado de un pedido con el desplegable (pendiente → en reparto → entregado). Si lo pasás a "cancelado", te pide el motivo y queda anotado en la tarjeta.</li>
+  <li>"💰 Marcar pago recibido" para transferencia/Mercado Pago (efectivo se marca solo al entregar).</li>
+  <li>"🔁 Mañana +envío" o "🔁 Mañana sin cargo" para reprogramar una entrega vos misma, con o sin cobrar de nuevo el envío.</li>
+  <li>"✏️ Editar" para corregir cualquier dato del pedido.</li>
+  <li>Arriba de todo aparecen dos avisos cuando corresponden: <strong>🎁 Cupones de bienvenida por enviar</strong> y <strong>⭐ Reseñas por pedir</strong> — son de clientes que ya recibieron su primera entrega. Tocá "💬 Enviar por WhatsApp": se abre el chat con el mensaje ya escrito, solo le das enviar. Después marcá "✅ Enviado" para que no te lo vuelva a recordar.</li>
+  <li>Al fondo está <strong>🚫 Cancelados a reprogramar</strong>: los pedidos cancelados de las últimas 2 semanas, cada uno con el motivo anotado (al cancelar siempre se pregunta por qué). Como al cliente se le promete que nos comunicamos, coordiná la nueva fecha, cambiala con "✏️ Editar" y ponelo en "pendiente".</li>
+</ul>
+
+<h3>➕ Nuevo pedido</h3>
+<p>Para cargar un pedido nuevo.</p>
+<ol>
+  <li><strong>Nombre y Apellido</strong> en sus dos campos (así queda siempre en el mismo orden, cargue quien cargue) y el teléfono (sin espacios ni guiones no hace falta, el sistema lo limpia solo).</li>
+  <li>Apenas cargás el teléfono, el sistema busca el historial de ese cliente y te avisa si es <strong>CLIENTE NUEVO</strong> o si <strong>le toca envío gratis por ser su 5ta compra</strong> 🎉.</li>
+  <li><strong>Calle, Número y Entre calles: los tres, siempre</strong> (igual que se pide en el WhatsApp Business). En calles numeradas va solo el número ("9" y "136"); en calles con nombre, el nombre ("Montevideo" y "456"). De esto depende que el mapa del repartidor caiga en la casa correcta.</li>
+  <li>Zona y <strong>Barrio/localidad</strong> (se completa solo al elegir la zona; corregilo si el pedido es de otro barrio de esa zona). Después monto de la mercadería.</li>
+  <li><strong>El precio del envío se calcula solo</strong> según la localidad y el rango de calle (tarifario editable en Config). Si la dirección no está cubierta por el tarifario, el sistema te avisa "consultar precio" y lo cargás a mano en ese momento.</li>
+  <li><strong>📦 Cantidad de productos y ❄️ cuántos de esos van refrigerados</strong> — con eso el repartidor controla la carga y el sistema marca solo la cadena de frío (conservadora, primera parada de su zona).</li>
+  <li>El envío sale gratis solo si el pedido supera el mínimo configurado, o si es la 5ta compra del cliente.</li>
+  <li>Cupón (si usa el de bienvenida), fecha de entrega, forma de pago.</li>
+  <li>Guardar → te deja copiar el mensaje de confirmación listo para mandar por WhatsApp.</li>
+</ol>
+
+<h3>💰 Liquidación</h3>
+<p>Para saber cuánto hay que transferirle al repartidor (o cuánto debe él) en la semana.</p>
+<ul>
+  <li>Por defecto muestra la semana pasada (lunes a domingo); podés cambiar las fechas.</li>
+  <li>Arriba te dice el neto: quién le transfiere a quién y cuánto.</li>
+  <li>Abajo está el detalle: envíos cobrados por transferencia/MP, envíos gratis (los paga Nutridiet a la tarifa de esa dirección), y lo que el repartidor debe por la mercadería cobrada en efectivo.</li>
+  <li><strong>"⬇️ Exportar CSV"</strong> descarga el rango de fechas filtrado como planilla, lista para pasarle a quien lleve la contabilidad.</li>
+</ul>
+
+<h3>👥 Clientes</h3>
+<p>Pantalla para ver quién compra y quién hace rato que no pide.</p>
+<ul>
+  <li>Tabla con cada cliente: cuántas compras, cuánto gastó en total, y hace cuántos días fue su última entrega.</li>
+  <li>Arriba, un cartel aparte con los que hace <strong>30 días o más</strong> que no piden — con un botón para armar un mensaje de reactivación y mandárselo directo por WhatsApp.</li>
+  <li>Tocá el nombre de cualquier cliente en la tabla para desplegar su <strong>historial completo</strong> de pedidos (fecha, monto, forma de pago y estado) — no tiene el límite de 14 días del Tablero, sirve para cuando alguien llama por un pedido viejo.</li>
+</ul>
+
+<h3>⚙️ Config</h3>
+<p>Parámetros generales (umbral de envío gratis, datos del cupón, link de reseña de Google, datos de pago), el <strong>🚚 Tarifario de envíos</strong> (precio fijo por localidad y tramos por rango de calles — editás los precios y tocás "Guardar tarifario"), y los datos logísticos de cada zona (días de entrega, mínimo, refrigerados). Cambios acá afectan a todos los pedidos nuevos — ante la duda, consultá con Nico antes de tocar algo.</p>
+
+<div class="pagebreak"></div>
+
+<h2><span class="rol repartidor">REPARTIDOR</span> — Recorrido del día</h2>
+
+<p>Al entrar ves el recorrido del día de hoy (podés cambiar la fecha arriba a la derecha). Las paradas ya vienen ordenadas: primero por zona, y dentro de cada zona, primero los pedidos con refrigerados (para que no se rompa la cadena de frío en la conservadora).</p>
+
+<h3>Al arrancar el día</h3>
+<ul>
+  <li>Tocá <strong>"🧭 Optimizar recorrido"</strong>: Google calcula la vuelta más corta por distancia real de manejo y reordena todas las paradas de la pantalla. Te pregunta una cosa: <strong>¿al terminar volvés al local?</strong> Si volvés (Aceptar), arma un circuito que termina cerca del local; si no (Cancelar), arranca por la parada más cercana y termina en la más lejana, sin manejar la vuelta. Te muestra los km y minutos estimados.</li>
+  <li>"🗺️ Abrir ruta en Google Maps" abre el recorrido ya en el orden optimizado, listo para navegar (si son muchas paradas, se parte en varios links).</li>
+  <li>La parada marcada <strong>▶ PRÓXIMA PARADA</strong> es la que sigue. El botón "Avisar que voy en camino 🚀" manda un WhatsApp al cliente avisándole que salís para allá — está disponible en <strong>todas</strong> las paradas pendientes, por si vas en otro orden.</li>
+</ul>
+
+<h3>En cada parada</h3>
+<ul>
+  <li>Cada tarjeta te muestra <strong>📦 cuántos productos lleva el pedido y ❄️ cuántos van refrigerados</strong> — controlá la carga antes de salir y en la puerta.</li>
+  <li><strong>📍 Mapa</strong> abre esa dirección sola en Maps. <strong>💬 WhatsApp</strong> te abre el chat directo con el cliente.</li>
+  <li>Si es <strong>efectivo contra entrega</strong>, el cartel "💵 COBRAR" te dice el monto exacto a cobrar en la puerta (mercadería + envío + revisita si la hubo).</li>
+  <li><strong>"Entregado ✅"</strong> cierra el pedido (y si era contra entrega, marca el pago cobrado automáticamente).</li>
+  <li><strong>"No estaba ❌"</strong>: te pregunta qué pasó (queda anotado) y te ofrece reprogramar para mañana ahí mismo con el cargo de revisita. <strong>Al cliente se le avisa por WhatsApp siempre</strong>: con la fecha nueva si reprogramaste, o con "nos comunicamos para coordinar" si lo dejás para que resuelva la tienda.</li>
+  <li><strong>"🚫 Cancelar"</strong>: si el cliente te avisa que no puede recibir (por ejemplo al mandarle el "voy en camino"), te pregunta el motivo (la tienda lo ve en el Tablero), le sale el WhatsApp avisando que quedó cancelada y que la vamos a reprogramar, y seguís con el resto del recorrido.</li>
+  <li><strong>"⏭️ Más tarde"</strong>: salta esa parada al final del recorrido del día sin reprogramarla para otro día (útil si no atienden y querés volver más tarde en la misma vuelta).</li>
+  <li>Si tocaste <strong>"Entregado ✅"</strong> por error, en la misma parada aparece <strong>"↩️ Deshacer"</strong> — la vuelve a pendiente (y si era contra entrega, saca el pago como cobrado).</li>
+</ul>
+
+<div class="nota">
+  💡 <strong>Revisita:</strong> si volvés otro día porque no había nadie, ese nuevo envío se cobra de nuevo — así se lo explicamos al cliente al momento de hacer el pedido. El sistema ya se encarga de sumarlo solo cuando reprogramás.
+</div>
+
+<div class="footer">Nutridiet Market · Envíos — instructivo generado para uso interno</div>
+
+</body>
+</html>

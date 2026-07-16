@@ -1,6 +1,112 @@
 import { useState } from "react";
 import { api } from "../api.js";
-import { dinero } from "../logic.js";
+import { parseTarifario } from "../logic.js";
+
+// Editor del tarifario de envíos (localidades fijas + rangos de calles).
+// Se guarda entero como JSON en config.tarifario: la lógica de precios
+// (calcularCostoEnvio en logic.js) no se toca al cambiar valores.
+function EditorTarifario({ config, recargar, setMsg }) {
+  const [t, setT] = useState(() => JSON.parse(JSON.stringify(parseTarifario(config))));
+  const [guardando, setGuardando] = useState(false);
+
+  const setFijo = (loc, valor) => setT((x) => ({ ...x, fijos: { ...x.fijos, [loc]: valor } }));
+  const setBase = (loc, valor) =>
+    setT((x) => ({ ...x, rangos: { ...x.rangos, [loc]: { ...x.rangos[loc], base: valor } } }));
+  const setTramo = (loc, i, campo, valor) =>
+    setT((x) => {
+      const tramos = x.rangos[loc].tramos.map((tr, j) => (j === i ? { ...tr, [campo]: valor } : tr));
+      return { ...x, rangos: { ...x.rangos, [loc]: { ...x.rangos[loc], tramos } } };
+    });
+  const agregarTramo = (loc) =>
+    setT((x) => ({
+      ...x,
+      rangos: { ...x.rangos, [loc]: { ...x.rangos[loc], tramos: [...x.rangos[loc].tramos, { desde: "", hasta: "", precio: "" }] } },
+    }));
+  const quitarTramo = (loc, i) =>
+    setT((x) => ({
+      ...x,
+      rangos: { ...x.rangos, [loc]: { ...x.rangos[loc], tramos: x.rangos[loc].tramos.filter((_, j) => j !== i) } },
+    }));
+
+  async function guardar() {
+    // Validación: todo numérico y rangos coherentes, antes de pisar el JSON
+    const limpio = { fijos: {}, rangos: {} };
+    for (const [loc, precio] of Object.entries(t.fijos || {})) {
+      const p = Number(precio);
+      if (!p || p <= 0) return setMsg({ tipo: "error", texto: `Precio inválido en ${loc}` });
+      limpio.fijos[loc] = p;
+    }
+    for (const [loc, r] of Object.entries(t.rangos || {})) {
+      const tramos = [];
+      for (const tr of r.tramos || []) {
+        const desde = Number(tr.desde), hasta = Number(tr.hasta), precio = Number(tr.precio);
+        if (!desde || !hasta || !precio || desde > hasta) {
+          return setMsg({ tipo: "error", texto: `Tramo inválido en ${loc}: revisá desde/hasta/precio` });
+        }
+        tramos.push({ desde, hasta, precio });
+      }
+      limpio.rangos[loc] = { ...(r.base != null && r.base !== "" ? { base: Number(r.base) } : {}), tramos };
+    }
+    setGuardando(true);
+    setMsg(null);
+    try {
+      await api.editarConfig({ tarifario: JSON.stringify(limpio) });
+      await recargar();
+      setMsg({ tipo: "ok", texto: "Tarifario guardado ✅ — los pedidos nuevos ya usan estos precios" });
+    } catch (e) {
+      setMsg({ tipo: "error", texto: e.message });
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div className="tarjeta">
+      <h2 style={{ marginTop: 0 }}>🚚 Tarifario de envíos</h2>
+      <p className="mini">El precio del envío sale de acá según la localidad y, donde aplica, el rango de calle. Los pedidos ya cargados no cambian.</p>
+
+      <h3>Precio fijo por localidad</h3>
+      {Object.entries(t.fijos || {}).map(([loc, precio]) => (
+        <div key={loc} className="linea">
+          <span>{loc}</span>
+          <input
+            value={precio}
+            onChange={(e) => setFijo(loc, e.target.value)}
+            inputMode="numeric"
+            style={{ width: 110, textAlign: "right" }}
+          />
+        </div>
+      ))}
+
+      {Object.entries(t.rangos || {}).map(([loc, r]) => (
+        <div key={loc}>
+          <h3>{loc} — por rango de calles</h3>
+          {r.base != null && (
+            <div className="linea">
+              <span>Resto de las calles (casco)</span>
+              <input value={r.base} onChange={(e) => setBase(loc, e.target.value)} inputMode="numeric" style={{ width: 110, textAlign: "right" }} />
+            </div>
+          )}
+          {(r.tramos || []).map((tr, i) => (
+            <div key={i} className="linea" style={{ gap: 6, alignItems: "center" }}>
+              <span style={{ display: "flex", gap: 6, alignItems: "center", flex: 1 }}>
+                Calles
+                <input value={tr.desde} onChange={(e) => setTramo(loc, i, "desde", e.target.value)} inputMode="numeric" style={{ width: 70 }} />
+                a
+                <input value={tr.hasta} onChange={(e) => setTramo(loc, i, "hasta", e.target.value)} inputMode="numeric" style={{ width: 70 }} />
+              </span>
+              <input value={tr.precio} onChange={(e) => setTramo(loc, i, "precio", e.target.value)} inputMode="numeric" style={{ width: 110, textAlign: "right" }} />
+              <button className="chico secundario" onClick={() => quitarTramo(loc, i)}>✕</button>
+            </div>
+          ))}
+          <button className="chico secundario" onClick={() => agregarTramo(loc)}>➕ Agregar tramo en {loc}</button>
+        </div>
+      ))}
+
+      <button className="primario" disabled={guardando} onClick={guardar}>Guardar tarifario</button>
+    </div>
+  );
+}
 
 const CLAVES = [
   ["umbral_envio_gratis", "Umbral de envío gratis ($)", "numeric"],
@@ -74,20 +180,15 @@ export default function Config({ zonas, config, recargar }) {
         <button className="primario" disabled={guardando} onClick={guardarConfig}>Guardar parámetros</button>
       </div>
 
+      <EditorTarifario config={config} recargar={recargar} setMsg={setMsg} />
+
       <h2>📍 Zonas</h2>
+      <p className="mini">El precio del envío ya no sale de la zona (está en el Tarifario de arriba); acá quedan los días de entrega, el mínimo de compra y si acepta refrigerados.</p>
       {zonasEdit.map((z) => (
         <div key={z.id} className="tarjeta">
           <strong>{z.orden_recorrido}. {z.nombre}</strong>
-          <div className="fila">
-            <div>
-              <label>Tarifa ($)</label>
-              <input inputMode="numeric" value={z.tarifa} onChange={(e) => editarZona(z.id, "tarifa", e.target.value)} />
-            </div>
-            <div>
-              <label>Mínimo de compra ($, vacío = sin mínimo)</label>
-              <input inputMode="numeric" value={z.minimo_compra ?? ""} onChange={(e) => editarZona(z.id, "minimo_compra", e.target.value)} />
-            </div>
-          </div>
+          <label>Mínimo de compra ($, vacío = sin mínimo)</label>
+          <input inputMode="numeric" value={z.minimo_compra ?? ""} onChange={(e) => editarZona(z.id, "minimo_compra", e.target.value)} />
           <label>Días de entrega</label>
           <input value={z.dias_entrega} onChange={(e) => editarZona(z.id, "dias_entrega", e.target.value)} />
           <div className="check">
@@ -100,7 +201,7 @@ export default function Config({ zonas, config, recargar }) {
             <label htmlFor={`frio-${z.id}`} style={{ margin: 0 }}>❄️ Acepta refrigerados</label>
           </div>
           <button className="secundario" disabled={guardando} onClick={() => guardarZona(z)}>
-            Guardar {z.nombre} ({dinero(z.tarifa)})
+            Guardar {z.nombre}
           </button>
         </div>
       ))}

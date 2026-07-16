@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
 import {
   dinero, hoyISO, ordenarRecorrido, montoACobrar, linksGoogleMaps, direccionParaMapa,
-  gananciaRepartidor, nombreFormaPago, idCorto, siguienteParada,
+  gananciaRepartidor, tarifaDelPedido, nombreFormaPago, idCorto, siguienteParada,
   ultimaEntregada, demoraEstimada, linkAvisoEnCamino, mensajeEnCamino, envioReintento,
   linkWhatsApp, mensajeNoEstabaReprogramado, mensajeNoTeEncontramos, mensajeCancelado,
 } from "../logic.js";
@@ -211,7 +211,7 @@ export default function Recorrido({ config }) {
                   onClick={async () => {
                     const nota = window.prompt("¿Qué pasó? (queda como nota)", "No estaba");
                     if (nota === null) return;
-                    const tarifa = Number(p.zona?.tarifa ?? 0);
+                    const tarifa = tarifaDelPedido(p);
                     const d = new Date(fecha + "T00:00:00");
                     d.setDate(d.getDate() + 1);
                     const manana = hoyISO(d);

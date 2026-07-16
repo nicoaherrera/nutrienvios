@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
 import {
   dinero, semanaPasada, calcularLiquidacion, resumenPorZona, metricas,
-  nombreFormaPago, idCorto, envioCobradoPorNutridiet, envioReintento, liquidacionCSV,
+  nombreFormaPago, idCorto, envioCobradoPorNutridiet, envioReintento, liquidacionCSV, tarifaDelPedido,
 } from "../logic.js";
 
 function descargarCSV(entregados, rango) {
@@ -111,7 +111,7 @@ export default function Liquidacion() {
 
           <div className="tarjeta">
             <h3>🎁 Envíos gratis (los paga Nutridiet a tarifa de zona) — {dinero(liq.totalEnviosGratis)}</h3>
-            <TablaPedidos pedidos={liq.enviosGratis} columnaMonto="Tarifa" valorMonto={(p) => p.zona?.tarifa ?? 0} />
+            <TablaPedidos pedidos={liq.enviosGratis} columnaMonto="Tarifa" valorMonto={tarifaDelPedido} />
           </div>
 
           <div className="tarjeta">

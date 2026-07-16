@@ -34,6 +34,90 @@ export function motivoEnvioGratis(montoPedido, config, pedidosPrevios) {
   return null;
 }
 
+// ── Tarifario de envíos ──────────────────────────────────────────────
+// El precio ya no es plano por zona: depende de la localidad y, en La Plata
+// y alrededores inmediatos, del rango de calle. Este es el tarifario inicial;
+// el vigente vive en config.tarifario (JSON, editable desde la pestaña Config)
+// y este objeto queda de fallback si esa clave falta o viene rota.
+export const TARIFARIO_INICIAL = {
+  // Localidades de precio fijo: la calle no importa.
+  fijos: {
+    "Gonnet": 6500,
+    "City Bell": 7000,
+    "Villa Elisa": 8000,
+    "Melchor Romero": 7000,
+    "Abasto": 8000,
+    "Lisandro Olmos": 8000,
+    "Ensenada": 7000,
+    "Berisso": 7000,
+    "Punta Lara": 7800,
+  },
+  // Localidades por rango de calle. "base" (solo La Plata) es el precio del
+  // casco cuando la calle no cae en ningún tramo de expansión.
+  rangos: {
+    "La Plata": {
+      base: 3300,
+      tramos: [
+        { desde: 115, hasta: 121, precio: 3900 }, // expansión este/norte
+        { desde: 122, hasta: 127, precio: 4500 },
+        { desde: 73, hasta: 79, precio: 3900 },   // expansión sur/oeste
+        { desde: 80, hasta: 89, precio: 4500 },
+        { desde: 90, hasta: 99, precio: 5200 },
+      ],
+    },
+    "Los Hornos": {
+      tramos: [
+        { desde: 131, hasta: 136, precio: 3900 },
+        { desde: 137, hasta: 142, precio: 4500 },
+        { desde: 143, hasta: 148, precio: 5200 },
+        { desde: 149, hasta: 154, precio: 5800 },
+        { desde: 155, hasta: 160, precio: 6500 },
+      ],
+    },
+    "Tolosa": {
+      tramos: [
+        { desde: 526, hasta: 531, precio: 3900 },
+        { desde: 521, hasta: 525, precio: 4500 },
+      ],
+    },
+    "Ringuelet": {
+      tramos: [{ desde: 509, hasta: 520, precio: 5200 }],
+    },
+  },
+};
+
+// El tarifario vigente viene en config.tarifario como string JSON (editable
+// desde la app). Si falta o no parsea, cae al inicial — nunca rompe la carga.
+export function parseTarifario(config) {
+  try {
+    const t = JSON.parse(config?.tarifario);
+    if (t && typeof t === "object" && (t.fijos || t.rangos)) return t;
+  } catch { /* JSON roto: fallback */ }
+  return TARIFARIO_INICIAL;
+}
+
+// Precio de envío para una dirección. Devuelve el precio, o null si no se
+// puede resolver (localidad desconocida, calle sin número en localidad por
+// rango, calle fuera de todos los tramos y sin base) → la UI muestra
+// "Consultar precio" y la tienda lo carga a mano.
+export function calcularCostoEnvio(localidad, calle, tarifario = TARIFARIO_INICIAL) {
+  const loc = String(localidad || "").trim().toLowerCase();
+  if (!loc) return null;
+
+  const fijo = Object.entries(tarifario.fijos || {}).find(([k]) => k.toLowerCase() === loc);
+  if (fijo) return Number(fijo[1]);
+
+  const porRango = Object.entries(tarifario.rangos || {}).find(([k]) => k.toLowerCase() === loc);
+  if (!porRango) return null;
+  const { base, tramos } = porRango[1];
+
+  const n = parseInt(String(calle ?? "").trim(), 10);
+  if (Number.isNaN(n)) return base != null ? Number(base) : null; // calle con nombre o diagonal
+  const tramo = (tramos || []).find((t) => n >= Number(t.desde) && n <= Number(t.hasta));
+  if (tramo) return Number(tramo.precio);
+  return base != null ? Number(base) : null;
+}
+
 export function costoEnvio(montoPedido, zona, config, pedidosPrevios) {
   return motivoEnvioGratis(montoPedido, config, pedidosPrevios) ? 0 : Number(zona.tarifa);
 }
@@ -152,9 +236,9 @@ export function separarNombreCompleto(nombreCompleto) {
 // numeradas se repiten entre el casco, Los Hornos, Tolosa, etc., así que
 // "La Plata" a secas puede geocodificar en el barrio equivocado.
 export const BARRIOS_POR_ZONA = {
-  1: ["La Plata"],                             // Casco urbano
-  2: ["Los Hornos", "Tolosa", "Ringuelet"],    // partido de La Plata
-  3: ["City Bell", "Gonnet"],                  // partido de La Plata
+  1: ["La Plata"],                             // Casco urbano (incluye expansiones 73-99 y 115-127)
+  2: ["Los Hornos", "Tolosa", "Ringuelet", "Melchor Romero", "Abasto", "Lisandro Olmos"], // partido de La Plata
+  3: ["City Bell", "Gonnet", "Villa Elisa"],   // partido de La Plata
   4: ["Berisso", "Ensenada", "Punta Lara"],
 };
 
@@ -175,7 +259,7 @@ function normalizarParaGeocoder(direccion) {
 // Prioridad de localidad: la elegida en el pedido > la primera de la zona.
 export function direccionParaMapa(direccion, zona, localidad) {
   const normalizada = normalizarParaGeocoder(direccion);
-  if (/la plata|berisso|ensenada|punta lara|city bell|gonnet|tolosa|ringuelet|hornos/i.test(direccion)) {
+  if (/la plata|berisso|ensenada|punta lara|city bell|gonnet|tolosa|ringuelet|hornos|villa elisa|romero|abasto|olmos/i.test(direccion)) {
     return `${normalizada}, Argentina`;
   }
   const loc = localidad || BARRIOS_POR_ZONA[zona?.id]?.[0] || "La Plata";
@@ -213,11 +297,18 @@ export function linksGoogleMaps(direccionLocal, paradas) {
   return links;
 }
 
+// Tarifa que corresponde a la dirección de este pedido: la calculada por el
+// tarifario al cargarlo (tarifa_envio); pedidos anteriores al tarifario caen
+// a la tarifa plana de su zona.
+export function tarifaDelPedido(pedido) {
+  return Number(pedido.tarifa_envio ?? pedido.zona?.tarifa ?? 0);
+}
+
 // Lo que gana el repartidor por un pedido entregado (para el total del día):
-// la tarifa de zona si fue envío gratis (la paga Nutridiet), o el costo_envio
-// cobrado; más el envío de las revisitas si las hubo.
+// la tarifa de la dirección si fue envío gratis (la paga Nutridiet), o el
+// costo_envio cobrado; más el envío de las revisitas si las hubo.
 export function gananciaRepartidor(pedido) {
-  const base = pedido.envio_gratis ? Number(pedido.zona?.tarifa ?? 0) : Number(pedido.costo_envio);
+  const base = pedido.envio_gratis ? tarifaDelPedido(pedido) : Number(pedido.costo_envio);
   return base + envioReintento(pedido);
 }
 
@@ -245,7 +336,7 @@ export function calcularLiquidacion(pedidos) {
   const efectivo = entregados.filter((p) => p.forma_pago === "efectivo_contra_entrega");
 
   const totalEnviosCobrados = enviosCobrados.reduce((s, p) => s + envioCobradoPorNutridiet(p), 0);
-  const totalEnviosGratis = enviosGratis.reduce((s, p) => s + Number(p.zona?.tarifa ?? 0), 0);
+  const totalEnviosGratis = enviosGratis.reduce((s, p) => s + tarifaDelPedido(p), 0);
   const debeNutridiet = totalEnviosCobrados + totalEnviosGratis;
   const debeRepartidor = efectivo.reduce((s, p) => s + Number(p.monto_pedido), 0);
 
