@@ -7,7 +7,7 @@ import {
   semanaPasada, gananciaRepartidor, idCorto, siguienteParada, ultimaEntregada,
   demoraEstimada, mensajeEnCamino, linkAvisoEnCamino, envioCobradoPorNutridiet,
   mensajeReprogramado, mensajeNoEstabaReprogramado, mensajeNoTeEncontramos, mensajeCancelado,
-  calcularCostoEnvio, parseTarifario, TARIFARIO_INICIAL, tarifaDelPedido,
+  calcularCostoEnvio, parseTarifario, TARIFARIO_INICIAL, tarifaDelPedido, totalesVentas,
   esQuintaCompra, motivoEnvioGratis, agregarClientes, mensajeReactivacion, linkReactivacion,
   textoResenaWhatsApp, liquidacionCSV, direccionParaMapa, textoConfirmacionWhatsApp,
   componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
@@ -513,6 +513,25 @@ test("mensajes de reprogramación: estilo Nutridiet con la política de revisita
   assert.match(enPuerta, /Reprogramamos la entrega para el domingo/);
   assert.match(enPuerta, /Como conversamos al momento de hacer el pedido/);
   assert.match(enPuerta, /se suma \$3\.500 del nuevo envío/);
+});
+
+test("totales de ventas para la caja: mercadería + envíos cobrados, solo entregados", () => {
+  const pedidos = [
+    // entregado normal: mercadería 60.000 + envío 3.300
+    { estado: "entregado", monto_pedido: 60000, costo_envio: 3300, envio_gratis: false, envio_reintento: 0 },
+    // envío gratis: solo suma la mercadería (el cliente no pagó envío)
+    { estado: "entregado", monto_pedido: 120000, costo_envio: 0, envio_gratis: true, envio_reintento: 0 },
+    // con revisita cobrada: envío 4.500 + revisita 4.500
+    { estado: "entregado", monto_pedido: 30000, costo_envio: 4500, envio_gratis: false, envio_reintento: 4500 },
+    // pendientes y cancelados no cuentan (todavía no son venta)
+    { estado: "pendiente", monto_pedido: 99999, costo_envio: 3300, envio_gratis: false, envio_reintento: 0 },
+    { estado: "cancelado", monto_pedido: 88888, costo_envio: 3300, envio_gratis: false, envio_reintento: 0 },
+  ];
+  const v = totalesVentas(pedidos);
+  assert.equal(v.cantidad, 3);
+  assert.equal(v.mercaderia, 210000);
+  assert.equal(v.envios, 3300 + 4500 + 4500);
+  assert.equal(v.total, 210000 + 12300);
 });
 
 test("semana pasada: lunes a domingo", () => {

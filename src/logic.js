@@ -379,6 +379,20 @@ export function liquidacionCSV(pedidosEntregados) {
   return filas.map((fila) => fila.map(csvEscape).join(",")).join("\n");
 }
 
+// Totales de ventas del período (solo ENTREGADOS), para cruzar con la caja
+// del POS al cierre del día: cuánto de lo facturado vino por la app, separado
+// en mercadería y envíos. Los envíos gratis no suman (el cliente no los pagó);
+// las revisitas cobradas sí.
+export function totalesVentas(pedidos) {
+  const entregados = pedidos.filter((p) => p.estado === "entregado");
+  const mercaderia = entregados.reduce((s, p) => s + Number(p.monto_pedido), 0);
+  const envios = entregados.reduce(
+    (s, p) => s + (p.envio_gratis ? 0 : Number(p.costo_envio)) + envioReintento(p),
+    0
+  );
+  return { cantidad: entregados.length, mercaderia, envios, total: mercaderia + envios };
+}
+
 export function resumenPorZona(pedidosEntregados) {
   const mapa = new Map();
   for (const p of pedidosEntregados) {

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import {
   dinero, semanaPasada, calcularLiquidacion, resumenPorZona, metricas,
   nombreFormaPago, idCorto, envioCobradoPorNutridiet, envioReintento, liquidacionCSV, tarifaDelPedido,
+  totalesVentas, hoyISO,
 } from "../logic.js";
 
 function descargarCSV(entregados, rango) {
@@ -44,11 +45,15 @@ export default function Liquidacion() {
   const [rango, setRango] = useState(semanaPasada());
   const [pedidos, setPedidos] = useState(null);
   const [error, setError] = useState(null);
+  const pedidoNro = useRef(0); // descarta respuestas viejas si se cambia el rango rápido
 
   const cargar = useCallback(() => {
+    const nro = ++pedidoNro.current;
     setError(null);
     setPedidos(null);
-    api.pedidosPorRango(rango.desde, rango.hasta).then(setPedidos).catch((e) => setError(e.message));
+    api.pedidosPorRango(rango.desde, rango.hasta)
+      .then((ps) => { if (pedidoNro.current === nro) setPedidos(ps); })
+      .catch((e) => { if (pedidoNro.current === nro) setError(e.message); });
   }, [rango]);
 
   useEffect(cargar, [cargar]);
@@ -56,13 +61,14 @@ export default function Liquidacion() {
   if (error) return <div className="aviso error">{error}</div>;
 
   const liq = pedidos ? calcularLiquidacion(pedidos) : null;
+  const ventas = pedidos ? totalesVentas(pedidos) : null;
   const zonasResumen = liq ? resumenPorZona(liq.entregados) : [];
   const m = liq ? metricas(liq.entregados) : null;
 
   return (
     <>
       <div className="tarjeta">
-        <h2 style={{ marginTop: 0 }}>💰 Liquidación semanal</h2>
+        <h2 style={{ marginTop: 0 }}>💰 Liquidación</h2>
         <div className="fila">
           <div>
             <label>Desde</label>
@@ -73,6 +79,12 @@ export default function Liquidacion() {
             <input type="date" value={rango.hasta} onChange={(e) => setRango((r) => ({ ...r, hasta: e.target.value }))} />
           </div>
         </div>
+        <button
+          className="chico secundario"
+          onClick={() => setRango({ desde: hoyISO(), hasta: hoyISO() })}
+        >
+          📆 Hoy (cierre de caja)
+        </button>
         <p className="mini">Default: semana pasada (lunes a domingo). Solo cuentan pedidos ENTREGADOS.</p>
       </div>
 
@@ -86,8 +98,29 @@ export default function Liquidacion() {
             </button>
           )}
 
+          <div className="tarjeta">
+            <h3 style={{ marginTop: 0 }}>🧾 Ventas por la app en el período (para cruzar con la caja)</h3>
+            <div className="linea">
+              <span>Pedidos entregados</span>
+              <span className="monto">{ventas.cantidad}</span>
+            </div>
+            <div className="linea">
+              <span>Mercadería (productos)</span>
+              <span className="monto">{dinero(ventas.mercaderia)}</span>
+            </div>
+            <div className="linea">
+              <span>Envíos cobrados al cliente (con revisitas; los gratis no suman)</span>
+              <span className="monto">{dinero(ventas.envios)}</span>
+            </div>
+            <div className="linea" style={{ borderTop: "1px solid #d8e3d5", paddingTop: 8 }}>
+              <span><strong>TOTAL vendido por la app</strong></span>
+              <span className="monto">{dinero(ventas.total)}</span>
+            </div>
+            <p className="mini">Lo facturado en el POS menos este total = venta física del local.</p>
+          </div>
+
           <div className="tarjeta" style={{ textAlign: "center" }}>
-            <div className="mini">NETO DE LA SEMANA</div>
+            <div className="mini">NETO DEL PERÍODO (repartidor)</div>
             <div className={`neto ${liq.neto >= 0 ? "positivo" : "negativo"}`}>{dinero(Math.abs(liq.neto))}</div>
             <strong>
               {liq.neto > 0 && "Nutridiet le transfiere al repartidor"}
