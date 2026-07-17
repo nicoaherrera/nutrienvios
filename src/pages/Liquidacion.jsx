@@ -43,7 +43,8 @@ function TablaPedidos({ pedidos, columnaMonto, valorMonto }) {
 
 export default function Liquidacion() {
   const [rango, setRango] = useState(semanaPasada());
-  const [pedidos, setPedidos] = useState(null);
+  const [pedidos, setPedidos] = useState(null); // entregas del período (liquidación del repartidor)
+  const [cargados, setCargados] = useState(null); // cargados en el período (ventas para la caja)
   const [error, setError] = useState(null);
   const pedidoNro = useRef(0); // descarta respuestas viejas si se cambia el rango rápido
 
@@ -51,8 +52,16 @@ export default function Liquidacion() {
     const nro = ++pedidoNro.current;
     setError(null);
     setPedidos(null);
-    api.pedidosPorRango(rango.desde, rango.hasta)
-      .then((ps) => { if (pedidoNro.current === nro) setPedidos(ps); })
+    setCargados(null);
+    Promise.all([
+      api.pedidosPorRango(rango.desde, rango.hasta),
+      api.pedidosCargadosEntre(rango.desde, rango.hasta),
+    ])
+      .then(([porEntrega, porCarga]) => {
+        if (pedidoNro.current !== nro) return;
+        setPedidos(porEntrega);
+        setCargados(porCarga);
+      })
       .catch((e) => { if (pedidoNro.current === nro) setError(e.message); });
   }, [rango]);
 
@@ -61,7 +70,7 @@ export default function Liquidacion() {
   if (error) return <div className="aviso error">{error}</div>;
 
   const liq = pedidos ? calcularLiquidacion(pedidos) : null;
-  const ventas = pedidos ? totalesVentas(pedidos) : null;
+  const ventas = cargados ? totalesVentas(cargados) : null;
   const zonasResumen = liq ? resumenPorZona(liq.entregados) : [];
   const m = liq ? metricas(liq.entregados) : null;
 
@@ -88,7 +97,7 @@ export default function Liquidacion() {
         <p className="mini">Default: semana pasada (lunes a domingo). Solo cuentan pedidos ENTREGADOS.</p>
       </div>
 
-      {!pedidos ? (
+      {!pedidos || !cargados ? (
         <div className="vacio">Calculando…</div>
       ) : (
         <>
@@ -100,8 +109,9 @@ export default function Liquidacion() {
 
           <div className="tarjeta">
             <h3 style={{ marginTop: 0 }}>🧾 Ventas por la app en el período (para cruzar con la caja)</h3>
+            <p className="mini">Cuenta los pedidos <strong>cargados</strong> en estas fechas — el ticket ya se hizo en el POS aunque la entrega sea programada. Los cancelados no suman (anular ese ticket en el POS).</p>
             <div className="linea">
-              <span>Pedidos entregados</span>
+              <span>Pedidos cargados{ventas.aEntregar > 0 ? ` (${ventas.aEntregar} con entrega programada)` : ""}</span>
               <span className="monto">{ventas.cantidad}</span>
             </div>
             <div className="linea">
@@ -116,7 +126,7 @@ export default function Liquidacion() {
               <span><strong>TOTAL vendido por la app</strong></span>
               <span className="monto">{dinero(ventas.total)}</span>
             </div>
-            <p className="mini">Lo facturado en el POS menos este total = venta física del local.</p>
+            <p className="mini">Lo facturado en el POS en el período menos este total = venta física del local.</p>
           </div>
 
           <div className="tarjeta" style={{ textAlign: "center" }}>

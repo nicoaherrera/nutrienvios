@@ -515,7 +515,7 @@ test("mensajes de reprogramación: estilo Nutridiet con la política de revisita
   assert.match(enPuerta, /se suma \$3\.500 del nuevo envío/);
 });
 
-test("totales de ventas para la caja: mercadería + envíos cobrados, solo entregados", () => {
+test("totales de ventas para la caja: cuentan todos los cargados menos cancelados (el ticket ya se hizo)", () => {
   const pedidos = [
     // entregado normal: mercadería 60.000 + envío 3.300
     { estado: "entregado", monto_pedido: 60000, costo_envio: 3300, envio_gratis: false, envio_reintento: 0 },
@@ -523,15 +523,17 @@ test("totales de ventas para la caja: mercadería + envíos cobrados, solo entre
     { estado: "entregado", monto_pedido: 120000, costo_envio: 0, envio_gratis: true, envio_reintento: 0 },
     // con revisita cobrada: envío 4.500 + revisita 4.500
     { estado: "entregado", monto_pedido: 30000, costo_envio: 4500, envio_gratis: false, envio_reintento: 4500 },
-    // pendientes y cancelados no cuentan (todavía no son venta)
-    { estado: "pendiente", monto_pedido: 99999, costo_envio: 3300, envio_gratis: false, envio_reintento: 0 },
+    // cargado hoy con entrega programada: la venta ya está hecha, SUMA
+    { estado: "pendiente", monto_pedido: 50000, costo_envio: 3300, envio_gratis: false, envio_reintento: 0 },
+    // cancelado: el ticket se anula en el POS, no suma
     { estado: "cancelado", monto_pedido: 88888, costo_envio: 3300, envio_gratis: false, envio_reintento: 0 },
   ];
   const v = totalesVentas(pedidos);
-  assert.equal(v.cantidad, 3);
-  assert.equal(v.mercaderia, 210000);
-  assert.equal(v.envios, 3300 + 4500 + 4500);
-  assert.equal(v.total, 210000 + 12300);
+  assert.equal(v.cantidad, 4);
+  assert.equal(v.aEntregar, 1); // el pendiente, para mostrar "N con entrega programada"
+  assert.equal(v.mercaderia, 260000);
+  assert.equal(v.envios, 3300 + 4500 + 4500 + 3300);
+  assert.equal(v.total, 260000 + 15600);
 });
 
 test("semana pasada: lunes a domingo", () => {

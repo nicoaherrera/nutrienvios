@@ -24,14 +24,18 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const { fecha, desde, hasta, telefono, id } = req.query;
+      const { fecha, desde, hasta, telefono, id, cargado_desde, cargado_hasta } = req.query;
       const filtros = [];
       if (id) filtros.push(`id=eq.${encodeURIComponent(id)}`);
       if (fecha) filtros.push(`fecha_entrega=eq.${encodeURIComponent(fecha)}`);
       if (desde) filtros.push(`fecha_entrega=gte.${encodeURIComponent(desde)}`);
       if (hasta) filtros.push(`fecha_entrega=lte.${encodeURIComponent(hasta)}`);
+      // Por fecha de CARGA (timestamps con zona horaria): para el cierre de
+      // caja cuenta el día en que se hizo el ticket, no el de entrega.
+      if (cargado_desde) filtros.push(`created_at=gte.${encodeURIComponent(cargado_desde)}`);
+      if (cargado_hasta) filtros.push(`created_at=lte.${encodeURIComponent(cargado_hasta)}`);
       if (telefono) filtros.push(`cliente_telefono=eq.${encodeURIComponent(telefono)}`);
-      if (!filtros.length) return res.status(400).json({ error: "Falta filtro (fecha, desde/hasta, telefono o id)" });
+      if (!filtros.length) return res.status(400).json({ error: "Falta filtro (fecha, desde/hasta, cargado_desde/cargado_hasta, telefono o id)" });
       const data = await sb(`pedidos?${SELECT}&${filtros.join("&")}&order=created_at.asc`);
       return res.status(200).json(data);
     }

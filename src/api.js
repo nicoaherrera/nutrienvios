@@ -28,6 +28,12 @@ export const api = {
   editarConfig: (cambios) => req("/api/config", { method: "PATCH", body: cambios }),
   pedidosPorFecha: (fecha) => req(`/api/pedidos?fecha=${fecha}`),
   pedidosPorRango: (desde, hasta) => req(`/api/pedidos?desde=${desde}&hasta=${hasta}`),
+  // Por día de carga del pedido (hora argentina): para el cierre de caja.
+  pedidosCargadosEntre: (desde, hasta) =>
+    req(
+      `/api/pedidos?cargado_desde=${encodeURIComponent(desde + "T00:00:00-03:00")}` +
+      `&cargado_hasta=${encodeURIComponent(hasta + "T23:59:59-03:00")}`
+    ),
   pedidosPorTelefono: (tel) => req(`/api/pedidos?telefono=${encodeURIComponent(tel)}`),
   pedidoPorId: (id) => req(`/api/pedidos?id=${id}`).then((r) => r[0]),
   crearPedido: (pedido) => req("/api/pedidos", { method: "POST", body: pedido }),
