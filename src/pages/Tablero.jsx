@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
 import {
-  dinero, hoyISO, nombreFormaPago, textoCuponWhatsApp, textoResenaWhatsApp, idCorto,
+  dinero, hoyISO, nombreFormaPago, idCorto,
   envioReintento, tarifaDelPedido, linkWhatsApp, mensajeReprogramado,
 } from "../logic.js";
 
@@ -88,30 +88,10 @@ export default function Tablero({ config, navegar }) {
     }
   }
 
-  async function cuponEnviado(p) {
-    try {
-      await api.editarPedido(p.id, { cupon_enviado_at: new Date().toISOString() });
-      cargar();
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  async function resenaEnviada(p) {
-    try {
-      await api.editarPedido(p.id, { resena_enviada_at: new Date().toISOString() });
-      cargar();
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
   if (error) return <div className="aviso error">{error} <button className="chico secundario" onClick={cargar}>Reintentar</button></div>;
   if (!pedidos) return <div className="vacio">Cargando…</div>;
 
   const hoy = hoyISO();
-  const recordatorios = pedidos.filter((p) => p.estado === "entregado" && p.cliente_nuevo && !p.cupon_enviado_at);
-  const recordatoriosResena = pedidos.filter((p) => p.estado === "entregado" && p.cliente_nuevo && !p.resena_enviada_at);
   const atrasados = pedidos.filter((p) => p.fecha_entrega < hoy && (p.estado === "pendiente" || p.estado === "en_reparto"));
   const proximos = pedidos.filter((p) => p.fecha_entrega >= hoy && p.estado !== "cancelado");
   // Cancelados de las últimas 2 semanas: hay que reprogramarlos o darlos por perdidos
@@ -165,54 +145,6 @@ export default function Tablero({ config, navegar }) {
 
   return (
     <>
-      {recordatorios.length > 0 && (
-        <div className="tarjeta" style={{ borderColor: "var(--azul)", background: "var(--azul-claro)" }}>
-          <h3 style={{ marginTop: 0 }}>🎁 Cupones de bienvenida por enviar ({recordatorios.length})</h3>
-          {recordatorios.map((p) => (
-            <div key={p.id} className="linea" style={{ flexWrap: "wrap" }}>
-              <span><strong>{p.cliente_nombre}</strong> — entregado el {p.fecha_entrega.slice(5)}</span>
-              <span style={{ display: "flex", gap: 6 }}>
-                <button
-                  className="chico primario"
-                  onClick={async () => {
-                    const texto = textoCuponWhatsApp(p.cliente_nombre, config);
-                    try { await navigator.clipboard.writeText(texto); } catch { /* el link ya lleva el texto */ }
-                    abrirWhatsApp(linkWhatsApp(p.cliente_telefono, texto));
-                  }}
-                >
-                  💬 Enviar por WhatsApp
-                </button>
-                <button className="chico secundario" onClick={() => cuponEnviado(p)}>✅ Enviado</button>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {recordatoriosResena.length > 0 && (
-        <div className="tarjeta" style={{ borderColor: "var(--verde)", background: "var(--verde-claro)" }}>
-          <h3 style={{ marginTop: 0 }}>⭐ Reseñas por pedir ({recordatoriosResena.length})</h3>
-          {recordatoriosResena.map((p) => (
-            <div key={p.id} className="linea" style={{ flexWrap: "wrap" }}>
-              <span><strong>{p.cliente_nombre}</strong> — entregado el {p.fecha_entrega.slice(5)}</span>
-              <span style={{ display: "flex", gap: 6 }}>
-                <button
-                  className="chico primario"
-                  onClick={async () => {
-                    const texto = textoResenaWhatsApp(p.cliente_nombre, config);
-                    try { await navigator.clipboard.writeText(texto); } catch { /* el link ya lleva el texto */ }
-                    abrirWhatsApp(linkWhatsApp(p.cliente_telefono, texto));
-                  }}
-                >
-                  💬 Enviar por WhatsApp
-                </button>
-                <button className="chico secundario" onClick={() => resenaEnviada(p)}>✅ Enviado</button>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
       {atrasados.length > 0 && (
         <>
           <h2>⚠️ Atrasados (no entregados de días anteriores)</h2>

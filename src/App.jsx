@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { api, setToken } from "./api.js";
 import Tablero from "./pages/Tablero.jsx";
+import Recordatorios from "./pages/Recordatorios.jsx";
 import NuevoPedido from "./pages/NuevoPedido.jsx";
 import Recorrido from "./pages/Recorrido.jsx";
 import Liquidacion from "./pages/Liquidacion.jsx";
@@ -19,6 +20,7 @@ function parseHash() {
 const TABS_TIENDA = [
   ["tablero", "📋 Tablero"],
   ["nuevo", "➕ Nuevo pedido"],
+  ["recordatorios", "🔔 Recordatorios"],
   ["liquidacion", "💰 Liquidación"],
   ["clientes", "👥 Clientes"],
   ["config", "⚙️ Config"],
@@ -96,6 +98,7 @@ export default function App() {
           ))}
         </div>
         {vista === "tablero" && <Tablero zonas={zonas} config={config} navegar={navegar} />}
+        {vista === "recordatorios" && <Recordatorios config={config} />}
         {vista === "nuevo" && (
           <NuevoPedido key={ruta.extra || "nuevo"} zonas={zonas} config={config} pedidoId={ruta.extra} navegar={navegar} />
         )}

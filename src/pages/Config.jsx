@@ -177,7 +177,27 @@ export default function Config({ zonas, config, recargar }) {
             />
           </div>
         ))}
-        <button className="primario" disabled={guardando} onClick={guardarConfig}>Guardar parámetros</button>
+        <h3>🔔 Recordatorios (pestaña Recordatorios)</h3>
+        <div className="check">
+          <input
+            type="checkbox"
+            id="cupon-activo"
+            checked={valores.cupon_recordatorio_activo !== "false"}
+            onChange={(e) => setValores((v) => ({ ...v, cupon_recordatorio_activo: String(e.target.checked) }))}
+          />
+          <label htmlFor="cupon-activo" style={{ margin: 0 }}>Recordar cupón de bienvenida a clientes nuevos</label>
+        </div>
+        <div className="check">
+          <input
+            type="checkbox"
+            id="resena-activo"
+            checked={valores.resena_recordatorio_activo !== "false"}
+            onChange={(e) => setValores((v) => ({ ...v, resena_recordatorio_activo: String(e.target.checked) }))}
+          />
+          <label htmlFor="resena-activo" style={{ margin: 0 }}>Recordar pedido de reseña a clientes nuevos</label>
+        </div>
+
+        <button className="primario" disabled={guardando} onClick={guardarConfig} style={{ marginTop: 12 }}>Guardar parámetros</button>
       </div>
 
       <EditorTarifario config={config} recargar={recargar} setMsg={setMsg} />
