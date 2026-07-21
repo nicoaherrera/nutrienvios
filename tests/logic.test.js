@@ -2,14 +2,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  esEnvioGratis, costoEnvio, validarPedido, validarCupon, esClienteNuevo,
+  dinero, esEnvioGratis, costoEnvio, validarPedido, validarCupon, esClienteNuevo,
   ordenarRecorrido, montoACobrar, linksGoogleMaps, calcularLiquidacion,
   semanaPasada, gananciaRepartidor, idCorto, siguienteParada, ultimaEntregada,
   demoraEstimada, mensajeEnCamino, linkAvisoEnCamino, envioCobradoPorNutridiet,
   mensajeReprogramado, mensajeNoEstabaReprogramado, mensajeNoTeEncontramos, mensajeCancelado,
   calcularCostoEnvio, parseTarifario, TARIFARIO_INICIAL, tarifaDelPedido, totalesVentas,
   esQuintaCompra, motivoEnvioGratis, agregarClientes, mensajeReactivacion, linkReactivacion,
-  textoResenaWhatsApp, liquidacionCSV, direccionParaMapa, textoConfirmacionWhatsApp,
+  textoResenaWhatsApp, textoCuponWhatsApp, interpolarPlantilla, PLANTILLA_CUPON_DEFAULT, PLANTILLA_RESENA_DEFAULT,
+  liquidacionCSV, direccionParaMapa, textoConfirmacionWhatsApp,
   componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
   ordenRutaAbierta,
 } from "../src/logic.js";
@@ -583,6 +584,37 @@ test("pedido de reseña: mensaje aparte del cupón, con el link de Google config
   assert.match(msg, /primera compra/);
   assert.match(msg, /https:\/\/g\.page\/r\/xyz\/review/);
   assert.ok(!msg.toLowerCase().includes("cupón"), "no debe mezclarse con el cupón de bienvenida");
+});
+
+test("mensaje de cupón: placeholders completados con los datos de config", () => {
+  const cfg = { ...config, cupon_descuento_pct: "15", cupon_bienvenida: "BIENVENIDA15", cupon_vigencia_dias: "20", cupon_minimo: "25000" };
+  const msg = textoCuponWhatsApp("Ana", cfg);
+  assert.match(msg, /¡Hola Ana!/);
+  assert.match(msg, /15% de descuento/);
+  assert.match(msg, /\*BIENVENIDA15\*/);
+  assert.match(msg, /20 días/);
+  assert.match(msg, /\$25\.000/);
+});
+
+test("interpolarPlantilla: reemplaza placeholders conocidos y deja los desconocidos tal cual", () => {
+  assert.equal(interpolarPlantilla("Hola {nombre}, código {codigo}", { nombre: "Ana", codigo: "X10" }), "Hola Ana, código X10");
+  assert.equal(interpolarPlantilla("Hola {nombre}, {no_existe}", { nombre: "Ana" }), "Hola Ana, {no_existe}");
+  assert.equal(interpolarPlantilla(null, { nombre: "Ana" }), "");
+});
+
+test("mensajes de cupón y reseña: plantilla editable desde config pisa el default", () => {
+  const cfgConPlantilla = { ...config, cupon_mensaje: "Gracias {nombre}, tu código es {codigo} ({descuento}% off)" };
+  assert.equal(
+    textoCuponWhatsApp("Ana", { ...cfgConPlantilla, cupon_bienvenida: "ABC", cupon_descuento_pct: "10" }),
+    "Gracias Ana, tu código es ABC (10% off)"
+  );
+  // sin plantilla en config, usa el default (y el default arma el mismo texto de siempre)
+  assert.equal(textoCuponWhatsApp("Ana", { ...config, cupon_bienvenida: "ABC" }), interpolarPlantilla(PLANTILLA_CUPON_DEFAULT, {
+    nombre: "Ana", descuento: config.cupon_descuento_pct, codigo: "ABC", vigencia: config.cupon_vigencia_dias, minimo: dinero(config.cupon_minimo),
+  }));
+
+  const cfgResena = { ...config, resena_mensaje: "{nombre}, dejanos tu opinión: {link}", link_resena_google: "https://g.page/x" };
+  assert.equal(textoResenaWhatsApp("Ana", cfgResena), "Ana, dejanos tu opinión: https://g.page/x");
 });
 
 test("CSV de liquidación: una fila por entregado, con envío gratis por fidelización y comas escapadas", () => {

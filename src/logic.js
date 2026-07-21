@@ -602,24 +602,43 @@ export function linkReactivacion(cliente) {
 // Pedido de reseña de Google tras la primera compra entregada. Flujo aparte
 // del cupón de bienvenida (no se ofrece a cambio de la reseña, va contra las
 // políticas de Google) — la tienda lo manda cuando le parece, sin condicionarlo.
+// Mensajes de cupón y reseña editables desde Config (config.cupon_mensaje /
+// config.resena_mensaje). Las plantillas usan placeholders {así} que se
+// completan al mandar el mensaje; si la clave no está en config (instalación
+// vieja, o se borró el texto sin querer), se usa este default.
+export const PLANTILLA_CUPON_DEFAULT =
+`¡Hola {nombre}! Gracias por tu primera compra en Nutridiet Market 💚
+
+🎁 Te regalamos un {descuento}% de descuento para tu próximo pedido 🛒 con el código *{codigo}*.
+Válido por {vigencia} días, compra mínima {minimo}.
+
+¡Te esperamos! 🫶`;
+
+export const PLANTILLA_RESENA_DEFAULT =
+`¡Hola {nombre}! 🌱 Te escribimos de Nutridiet Market. Gracias por elegirnos en tu primera compra 💚
+
+¿Nos regalás dos minutitos para dejarnos tu opinión en Google? Nos ayuda un montón a seguir creciendo 🙏
+{link}
+
+¡Gracias por sumarte a la tribu Nutridiet! 🫶`;
+
+export function interpolarPlantilla(plantilla, valores) {
+  return String(plantilla || "").replace(/\{(\w+)\}/g, (m, clave) => (clave in valores ? String(valores[clave]) : m));
+}
+
 export function textoResenaWhatsApp(nombre, config) {
-  return [
-    `¡Hola ${nombre}! 🌱 Te escribimos de Nutridiet Market. Gracias por elegirnos en tu primera compra 💚`,
-    ``,
-    `¿Nos regalás dos minutitos para dejarnos tu opinión en Google? Nos ayuda un montón a seguir creciendo 🙏`,
-    config.link_resena_google,
-    ``,
-    `¡Gracias por sumarte a la tribu Nutridiet! 🫶`,
-  ].join("\n");
+  return interpolarPlantilla(config.resena_mensaje || PLANTILLA_RESENA_DEFAULT, {
+    nombre,
+    link: config.link_resena_google,
+  });
 }
 
 export function textoCuponWhatsApp(nombre, config) {
-  return [
-    `¡Hola ${nombre}! Gracias por tu primera compra en Nutridiet Market 💚`,
-    ``,
-    `🎁 Te regalamos un ${config.cupon_descuento_pct}% de descuento para tu próximo pedido 🛒 con el código *${config.cupon_bienvenida}*.`,
-    `Válido por ${config.cupon_vigencia_dias} días, compra mínima ${dinero(config.cupon_minimo)}.`,
-    ``,
-    `¡Te esperamos! 🫶`,
-  ].join("\n");
+  return interpolarPlantilla(config.cupon_mensaje || PLANTILLA_CUPON_DEFAULT, {
+    nombre,
+    descuento: config.cupon_descuento_pct,
+    codigo: config.cupon_bienvenida,
+    vigencia: config.cupon_vigencia_dias,
+    minimo: dinero(config.cupon_minimo),
+  });
 }

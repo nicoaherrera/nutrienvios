@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../api.js";
-import { parseTarifario } from "../logic.js";
+import { parseTarifario, PLANTILLA_CUPON_DEFAULT, PLANTILLA_RESENA_DEFAULT } from "../logic.js";
 
 // Editor del tarifario de envíos (localidades fijas + rangos de calles).
 // Se guarda entero como JSON en config.tarifario: la lógica de precios
@@ -120,7 +120,11 @@ const CLAVES = [
 ];
 
 export default function Config({ zonas, config, recargar }) {
-  const [valores, setValores] = useState(config);
+  const [valores, setValores] = useState(() => ({
+    ...config,
+    cupon_mensaje: config.cupon_mensaje || PLANTILLA_CUPON_DEFAULT,
+    resena_mensaje: config.resena_mensaje || PLANTILLA_RESENA_DEFAULT,
+  }));
   const [zonasEdit, setZonasEdit] = useState(zonas);
   const [guardando, setGuardando] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -196,6 +200,30 @@ export default function Config({ zonas, config, recargar }) {
           />
           <label htmlFor="resena-activo" style={{ margin: 0 }}>Recordar pedido de reseña a clientes nuevos</label>
         </div>
+
+        <label>Mensaje del cupón de bienvenida</label>
+        <textarea
+          rows={6}
+          value={valores.cupon_mensaje}
+          onChange={(e) => setValores((v) => ({ ...v, cupon_mensaje: e.target.value }))}
+        />
+        <p className="mini">
+          Placeholders: {"{nombre}"} {"{codigo}"} {"{descuento}"} {"{vigencia}"} {"{minimo}"} — se completan solos al mandar el mensaje.
+        </p>
+        <button className="chico secundario" onClick={() => setValores((v) => ({ ...v, cupon_mensaje: PLANTILLA_CUPON_DEFAULT }))}>
+          ↩️ Restaurar mensaje original del cupón
+        </button>
+
+        <label style={{ marginTop: 14, display: "block" }}>Mensaje de pedido de reseña</label>
+        <textarea
+          rows={6}
+          value={valores.resena_mensaje}
+          onChange={(e) => setValores((v) => ({ ...v, resena_mensaje: e.target.value }))}
+        />
+        <p className="mini">Placeholders: {"{nombre}"} {"{link}"} — se completan solos al mandar el mensaje.</p>
+        <button className="chico secundario" onClick={() => setValores((v) => ({ ...v, resena_mensaje: PLANTILLA_RESENA_DEFAULT }))}>
+          ↩️ Restaurar mensaje original de la reseña
+        </button>
 
         <button className="primario" disabled={guardando} onClick={guardarConfig} style={{ marginTop: 12 }}>Guardar parámetros</button>
       </div>
