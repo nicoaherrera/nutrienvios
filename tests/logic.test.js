@@ -13,6 +13,7 @@ import {
   liquidacionCSV, direccionParaMapa, textoConfirmacionWhatsApp,
   componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
   ordenRutaAbierta,
+  esZonaPropia, resumenPedidoTiendaNube, mensajeAperturaClienteTiendaNube, linkAvisoVendedorTiendaNube,
 } from "../src/logic.js";
 
 const config = {
@@ -646,4 +647,45 @@ test("mensaje de reactivación: menciona los días sin pedir y arma el link de W
   const url = linkReactivacion(cliente);
   assert.ok(url.startsWith("https://wa.me/2215550000?text="));
   assert.equal(decodeURIComponent(url.split("?text=")[1]), msg);
+});
+
+// ── Pedidos de Tienda Nube en zona propia ───────────────────────────
+
+test("esZonaPropia: reconoce las localidades propias sin importar tildes/mayúsculas, y rechaza el resto", () => {
+  assert.equal(esZonaPropia("La Plata"), true);
+  assert.equal(esZonaPropia("BERISSO"), true);
+  assert.equal(esZonaPropia("ensenada"), true);
+  assert.equal(esZonaPropia("Gónnet"), true); // tolera tilde de más/menos
+  assert.equal(esZonaPropia("Mar del Plata"), false);
+  assert.equal(esZonaPropia(""), false);
+  assert.equal(esZonaPropia(undefined), false);
+});
+
+const ordenTN = {
+  id: 871254203,
+  number: 101,
+  customer: { name: "Valentina", phone: "+5492216766201" },
+  shipping_address: { address: "29", number: "234", city: "La Plata" },
+  products: [{ name: "Zuelo Aceite de Oliva Virgen Extra Suave 500 ml", quantity: "2" }],
+  total: "6750.00",
+  payment_status: "pending",
+};
+
+test("resumenPedidoTiendaNube: incluye número de pedido, cliente, dirección, productos y total", () => {
+  const texto = resumenPedidoTiendaNube(ordenTN);
+  assert.match(texto, /#101/);
+  assert.match(texto, /Valentina \(\+5492216766201\)/);
+  assert.match(texto, /29 234, La Plata/);
+  assert.match(texto, /2 x Zuelo Aceite de Oliva/);
+  assert.match(texto, /\$6.750/);
+  assert.match(texto, /pendiente/);
+});
+
+test("linkAvisoVendedorTiendaNube: arma un link de WhatsApp al teléfono del cliente con saludo + número de pedido", () => {
+  const url = linkAvisoVendedorTiendaNube(ordenTN);
+  assert.ok(url.startsWith("https://wa.me/5492216766201?text="));
+  const texto = decodeURIComponent(url.split("?text=")[1]);
+  assert.equal(texto, mensajeAperturaClienteTiendaNube(ordenTN));
+  assert.match(texto, /¡Hola Valentina!/);
+  assert.match(texto, /#101/);
 });

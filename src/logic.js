@@ -481,6 +481,70 @@ export function linkAvisoEnCamino(pedido, demora) {
   return linkWhatsApp(pedido.cliente_telefono, mensajeEnCamino(pedido, demora));
 }
 
+// ── Pedidos de Tienda Nube en zona propia ───────────────────────────
+// Cuando entra un pedido online en una localidad que reparte el propio
+// equipo (no se despacha por correo), se le avisa al vendedor por
+// Telegram con los datos del pedido y un link de WhatsApp ya armado
+// para que le escriba al cliente con un solo toque.
+// Localidades = las que ya tienen tarifa propia en TARIFARIO_INICIAL
+// (La Plata y el resto de las que reparte el equipo).
+export const LOCALIDADES_ZONA_PROPIA = [
+  "La Plata", "Los Hornos", "Tolosa", "Ringuelet", "Gonnet", "City Bell",
+  "Villa Elisa", "Melchor Romero", "Abasto", "Lisandro Olmos",
+  "Ensenada", "Berisso", "Punta Lara",
+];
+
+function sinTildes(s) {
+  return String(s || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+export function esZonaPropia(localidad) {
+  const n = sinTildes(localidad);
+  return !!n && LOCALIDADES_ZONA_PROPIA.some((z) => sinTildes(z) === n);
+}
+
+export function idCortoTiendaNube(order) {
+  return "#" + order.number;
+}
+
+// Resumen del pedido de Tienda Nube para que el vendedor vea de qué se
+// trata sin entrar al panel. `order` es la respuesta de GET /orders/{id}
+// de la API de Tiendanube.
+export function resumenPedidoTiendaNube(order) {
+  const nombre = order.customer?.name || order.contact_name || "Cliente";
+  const telefono = order.customer?.phone || order.contact_phone || "";
+  const dir = order.shipping_address || {};
+  const direccion = [dir.address, dir.number, dir.floor].filter(Boolean).join(" ");
+  const localidad = dir.city || dir.locality || "";
+  const productos = (order.products || [])
+    .map((p) => `• ${p.quantity} x ${p.name}`)
+    .join("\n") || "(ver detalle en el panel de Tienda Nube)";
+  return (
+    `🛒 Pedido nuevo ${idCortoTiendaNube(order)} — zona propia\n\n` +
+    `Cliente: ${nombre}${telefono ? ` (${telefono})` : ""}\n` +
+    `Dirección: ${direccion}${localidad ? `, ${localidad}` : ""}\n\n` +
+    `${productos}\n\n` +
+    `💰 Total: ${dinero(order.total)}\n` +
+    `💳 Pago: ${order.payment_status === "paid" ? "ya pagado ✅" : "pendiente ⏳"}`
+  );
+}
+
+// Mensaje corto para que el vendedor le escriba al cliente por WhatsApp
+// con un solo toque (no es el resumen completo: eso ya lo tiene el
+// vendedor en el aviso de Telegram).
+export function mensajeAperturaClienteTiendaNube(order) {
+  const nombre = order.customer?.name || order.contact_name || "";
+  return (
+    `¡Hola${nombre ? ` ${nombre}` : ""}! Te escribimos de Nutridiet Market 🌱 por tu pedido ` +
+    `${idCortoTiendaNube(order)}. ¿Coordinamos el pago y la entrega?`
+  );
+}
+
+export function linkAvisoVendedorTiendaNube(order) {
+  const telefono = order.customer?.phone || order.contact_phone || "";
+  return linkWhatsApp(telefono, mensajeAperturaClienteTiendaNube(order));
+}
+
 // Cuando el repartidor marca "No estaba" sin reprogramar en el momento:
 // el aviso sale igual (siempre se le avisa al cliente), la fecha la
 // coordina la tienda después.
