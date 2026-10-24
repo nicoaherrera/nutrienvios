@@ -681,6 +681,21 @@ test("resumenPedidoTiendaNube: incluye número de pedido, cliente, dirección, p
   assert.match(texto, /pendiente/);
 });
 
+test("resumenPedidoTiendaNube: escapa HTML en datos del cliente (el mensaje de Telegram usa parse_mode HTML)", () => {
+  const orden = {
+    ...ordenTN,
+    customer: { name: '<a href="https://evil.example">Clickeame</a>', phone: "+54 9 221" },
+    shipping_address: { address: "Calle <script>", number: "1", city: "La Plata" },
+    products: [{ name: "Producto & cía <tag>", quantity: "1" }],
+  };
+  const texto = resumenPedidoTiendaNube(orden);
+  assert.ok(!texto.includes("<a href"));
+  assert.ok(!texto.includes("<script>"));
+  assert.ok(!texto.includes("<tag>"));
+  assert.match(texto, /&lt;a href="https:\/\/evil\.example"&gt;Clickeame&lt;\/a&gt;/);
+  assert.match(texto, /Producto &amp; cía &lt;tag&gt;/);
+});
+
 test("linkAvisoVendedorTiendaNube: arma un link de WhatsApp al teléfono del cliente con saludo + número de pedido", () => {
   const url = linkAvisoVendedorTiendaNube(ordenTN);
   assert.ok(url.startsWith("https://wa.me/5492216766201?text="));

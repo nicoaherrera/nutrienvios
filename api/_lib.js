@@ -1,11 +1,25 @@
 // Helpers compartidos por las funciones serverless.
 // Vercel no expone como endpoint los archivos que empiezan con "_".
+import crypto from "crypto";
+
+// Comparación a tiempo constante (mismo patrón que la firma de Tiendanube
+// en _tiendanube.js): con === el tiempo de respuesta varía según cuántos
+// caracteres iniciales coinciden, lo cual en teoría filtra el token
+// carácter a carácter. No es el riesgo más probable acá (son tokens de
+// 32 caracteres, fuerza bruta ya es inviable), pero es gratis de evitar.
+function igual(a, b) {
+  if (!a || !b) return false;
+  const bufA = Buffer.from(String(a));
+  const bufB = Buffer.from(String(b));
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 export function rol(req) {
   const token = req.headers["x-app-token"];
   if (!token) return null;
-  if (token === process.env.TOKEN_TIENDA) return "tienda";
-  if (token === process.env.TOKEN_REPARTIDOR) return "repartidor";
+  if (igual(token, process.env.TOKEN_TIENDA)) return "tienda";
+  if (igual(token, process.env.TOKEN_REPARTIDOR)) return "repartidor";
   return null;
 }
 

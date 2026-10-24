@@ -507,17 +507,29 @@ export function idCortoTiendaNube(order) {
   return "#" + order.number;
 }
 
+// El mensaje de Telegram se manda con parse_mode "HTML": sin escapar,
+// un cliente podría poner algo tipo <a href="..."> como su nombre en el
+// checkout de Tienda Nube y que el vendedor reciba un link clickeable
+// que no es nuestro (phishing). Todo dato que viene del pedido (nombre,
+// dirección, productos) pasa por acá antes de entrar al mensaje.
+function escaparHtml(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 // Resumen del pedido de Tienda Nube para que el vendedor vea de qué se
 // trata sin entrar al panel. `order` es la respuesta de GET /orders/{id}
 // de la API de Tiendanube.
 export function resumenPedidoTiendaNube(order) {
-  const nombre = order.customer?.name || order.contact_name || "Cliente";
-  const telefono = order.customer?.phone || order.contact_phone || "";
+  const nombre = escaparHtml(order.customer?.name || order.contact_name || "Cliente");
+  const telefono = escaparHtml(order.customer?.phone || order.contact_phone || "");
   const dir = order.shipping_address || {};
-  const direccion = [dir.address, dir.number, dir.floor].filter(Boolean).join(" ");
-  const localidad = dir.city || dir.locality || "";
+  const direccion = escaparHtml([dir.address, dir.number, dir.floor].filter(Boolean).join(" "));
+  const localidad = escaparHtml(dir.city || dir.locality || "");
   const productos = (order.products || [])
-    .map((p) => `• ${p.quantity} x ${p.name}`)
+    .map((p) => `• ${p.quantity} x ${escaparHtml(p.name)}`)
     .join("\n") || "(ver detalle en el panel de Tienda Nube)";
   return (
     `🛒 Pedido nuevo ${idCortoTiendaNube(order)} — zona propia\n\n` +
