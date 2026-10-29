@@ -14,6 +14,7 @@ import {
   componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
   ordenRutaAbierta,
   esZonaPropia, resumenPedidoTiendaNube, mensajeAperturaClienteTiendaNube, linkAvisoVendedorTiendaNube,
+  directorioClientes, buscarClientes,
 } from "../src/logic.js";
 
 const config = {
@@ -703,4 +704,63 @@ test("linkAvisoVendedorTiendaNube: arma un link de WhatsApp al teléfono del cli
   assert.equal(texto, mensajeAperturaClienteTiendaNube(ordenTN));
   assert.match(texto, /¡Hola Valentina!/);
   assert.match(texto, /#101/);
+});
+
+// --- Directorio de clientes para la carga de pedidos ---
+
+const pedidosDirectorio = [
+  { cliente_telefono: "2215550001", cliente_nombre: "Ana Pérez", direccion: "Calle 7 N° 1234", entre_calles: "56 y 57", referencia: "rejas verdes", zona_id: 1, localidad: "La Plata", fecha_entrega: "2026-09-01", created_at: "2026-08-31T10:00:00Z", estado: "entregado" },
+  { cliente_telefono: "2215550001", cliente_nombre: "Ana Pérez", direccion: "Calle 7 N° 1234", entre_calles: "56 y 57", referencia: "timbre roto", zona_id: 1, localidad: "La Plata", fecha_entrega: "2026-09-20", created_at: "2026-09-19T10:00:00Z", estado: "entregado" },
+  { cliente_telefono: "2215550001", cliente_nombre: "Ana María Pérez", direccion: "Calle 14 N° 500", entre_calles: "", referencia: null, zona_id: 3, localidad: "City Bell", fecha_entrega: "2026-10-10", created_at: "2026-10-09T10:00:00Z", estado: "pendiente" },
+  { cliente_telefono: "2215550002", cliente_nombre: "José Gómez", direccion: "Diagonal 74 200", entre_calles: "", referencia: null, zona_id: 1, localidad: "La Plata", fecha_entrega: "2026-10-01", created_at: "2026-09-30T10:00:00Z", estado: "entregado" },
+  { cliente_telefono: "2215550003", cliente_nombre: "Solo Cancelado", direccion: "Calle 1 N° 1", entre_calles: "", referencia: null, zona_id: 1, localidad: "La Plata", fecha_entrega: "2026-10-02", created_at: "2026-10-01T10:00:00Z", estado: "cancelado" },
+];
+
+test("directorio: agrupa por teléfono, último pedido primero, sin cancelados", () => {
+  const dir = directorioClientes(pedidosDirectorio);
+  assert.deepEqual(dir.map((c) => c.telefono), ["2215550001", "2215550002"]);
+  const ana = dir[0];
+  assert.equal(ana.nombre, "Ana María Pérez"); // el nombre del pedido más reciente
+  assert.equal(ana.compras, 2); // entregados
+  assert.equal(ana.ultimoPedido, "2026-10-10");
+});
+
+test("directorio: domicilios distintos, el más reciente primero y con sus datos más nuevos", () => {
+  const [ana] = directorioClientes(pedidosDirectorio);
+  assert.equal(ana.domicilios.length, 2);
+  assert.equal(ana.domicilios[0].direccion, "Calle 14 N° 500");
+  assert.equal(ana.domicilios[0].zona_id, 3);
+  assert.equal(ana.domicilios[0].localidad, "City Bell");
+  assert.equal(ana.domicilios[1].direccion, "Calle 7 N° 1234");
+  assert.equal(ana.domicilios[1].referencia, "timbre roto"); // la versión más nueva de ese domicilio
+  assert.equal(ana.domicilios[1].entre_calles, "56 y 57");
+});
+
+test("directorio: mismo domicilio escrito con distinto espaciado/mayúsculas cuenta una vez", () => {
+  const dir = directorioClientes([
+    { ...pedidosDirectorio[0], direccion: "calle 7  n° 1234" },
+    { ...pedidosDirectorio[1] },
+  ]);
+  assert.equal(dir[0].domicilios.length, 1);
+});
+
+test("buscarClientes: por nombre sin importar acentos ni mayúsculas, todas las palabras", () => {
+  const dir = directorioClientes(pedidosDirectorio);
+  assert.deepEqual(buscarClientes(dir, "jose").map((c) => c.telefono), ["2215550002"]);
+  assert.deepEqual(buscarClientes(dir, "PEREZ ana").map((c) => c.telefono), ["2215550001"]);
+  assert.deepEqual(buscarClientes(dir, "ana gomez"), []);
+});
+
+test("buscarClientes: por teléfono ignorando espacios y guiones", () => {
+  const dir = directorioClientes(pedidosDirectorio);
+  assert.deepEqual(buscarClientes(dir, "555 0002").map((c) => c.telefono), ["2215550002"]);
+  assert.deepEqual(buscarClientes(dir, "221-555").length, 2);
+});
+
+test("buscarClientes: texto vacío o muy corto no lista nada; respeta el máximo", () => {
+  const dir = directorioClientes(pedidosDirectorio);
+  assert.deepEqual(buscarClientes(dir, ""), []);
+  assert.deepEqual(buscarClientes(dir, "a"), []);
+  assert.deepEqual(buscarClientes(dir, "22"), []);
+  assert.equal(buscarClientes(dir, "221", 1).length, 1);
 });

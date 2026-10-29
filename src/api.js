@@ -39,6 +39,7 @@ export const api = {
   crearPedido: (pedido) => req("/api/pedidos", { method: "POST", body: pedido }),
   editarPedido: (id, cambios) => req(`/api/pedidos?id=${id}`, { method: "PATCH", body: cambios }),
   clientes: () => req("/api/clientes"),
+  directorioClientes: () => req("/api/clientes?directorio=1"),
   optimizarRuta: (fecha, volverAlLocal = true) =>
     req("/api/optimizar-ruta", { method: "POST", body: { fecha, volverAlLocal } }),
 };

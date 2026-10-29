@@ -675,6 +675,60 @@ export function linkReactivacion(cliente) {
   return linkWhatsApp(cliente.telefono, mensajeReactivacion(cliente));
 }
 
+// Directorio para la carga de pedidos: elegir un cliente recurrente precarga
+// nombre, teléfono y domicilio sin tipear todo de nuevo. No hay tabla de
+// clientes: se arma con los pedidos (no cancelados, incluye pendientes),
+// agrupados por teléfono. Cada domicilio distinto (calle+número+barrio)
+// aparece una vez, con los datos de la vez más reciente que se usó.
+function normalizarTexto(s) {
+  return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+export function directorioClientes(pedidos) {
+  const recientes = (pedidos || [])
+    .filter((p) => p.estado !== "cancelado")
+    .sort((a, b) => (b.fecha_entrega + b.created_at).localeCompare(a.fecha_entrega + a.created_at));
+  const mapa = new Map();
+  for (const p of recientes) {
+    const tel = p.cliente_telefono;
+    let c = mapa.get(tel);
+    if (!c) {
+      c = { telefono: tel, nombre: p.cliente_nombre, compras: 0, ultimoPedido: p.fecha_entrega, domicilios: [], _claves: new Set() };
+      mapa.set(tel, c);
+    }
+    if (p.estado === "entregado") c.compras += 1;
+    const clave = normalizarTexto(p.direccion) + "|" + normalizarTexto(p.localidad);
+    if (!c._claves.has(clave)) {
+      c._claves.add(clave);
+      c.domicilios.push({
+        direccion: p.direccion,
+        entre_calles: p.entre_calles || "",
+        referencia: p.referencia || "",
+        zona_id: p.zona_id,
+        localidad: p.localidad || "",
+      });
+    }
+  }
+  return [...mapa.values()].map(({ _claves, ...c }) => c);
+}
+
+// Por teléfono si el texto son solo dígitos (ignorando espacios, guiones, +);
+// si no, por nombre: todas las palabras tienen que aparecer, sin acentos.
+export function buscarClientes(directorio, texto, max = 8) {
+  const q = normalizarTexto(texto);
+  const digitos = q.replace(/[\s\-+()]/g, "");
+  if (/^\d+$/.test(digitos)) {
+    if (digitos.length < 3) return [];
+    return directorio.filter((c) => normalizarTelefono(c.telefono).includes(digitos)).slice(0, max);
+  }
+  if (q.length < 2) return [];
+  const palabras = q.split(" ");
+  return directorio.filter((c) => {
+    const nombre = normalizarTexto(c.nombre);
+    return palabras.every((w) => nombre.includes(w));
+  }).slice(0, max);
+}
+
 // Pedido de reseña de Google tras la primera compra entregada. Flujo aparte
 // del cupón de bienvenida (no se ofrece a cambio de la reseña, va contra las
 // políticas de Google) — la tienda lo manda cuando le parece, sin condicionarlo.

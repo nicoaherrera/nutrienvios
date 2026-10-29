@@ -135,3 +135,14 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .vacio { text-align: center; color: var(--texto-suave); padding: 30px 10px; }
 .error-pantalla { text-align: center; padding: 60px 20px; color: var(--texto-suave); }
 .mini { font-size: 0.8rem; color: var(--texto-suave); }
+
+/* Buscador de cliente existente en la carga de pedidos */
+.resultados-cliente { border: 1px solid var(--borde); border-radius: 8px; margin-top: 4px; overflow: hidden; }
+.resultados-cliente button {
+  display: block; width: 100%; text-align: left; padding: 10px 12px; background: var(--tarjeta);
+  border: none; border-bottom: 1px solid var(--borde); font: inherit; color: var(--texto); cursor: pointer;
+}
+.resultados-cliente button:last-child { border-bottom: none; }
+.resultados-cliente button:hover, .resultados-cliente button:focus { background: var(--verde-claro); }
+.domicilios { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.domicilios button { text-align: left; }

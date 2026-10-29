@@ -5,8 +5,23 @@ import {
   calcularCostoEnvio, parseTarifario,
   validarPedido, validarCupon, esClienteNuevo, textoConfirmacionWhatsApp, idCorto,
   componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
-  BARRIOS_POR_ZONA,
+  BARRIOS_POR_ZONA, buscarClientes,
 } from "../logic.js";
+
+// Campos que se precargan al elegir un cliente existente (y se vacían al quitarlo).
+const DOMICILIO_VACIO = { calle: "", numero: "", entre_calles: "", referencia: "", zona_id: "", localidad: "", tarifa_manual: "" };
+const CLIENTE_VACIO = { nombre: "", apellido: "", cliente_telefono: "", ...DOMICILIO_VACIO };
+
+function camposDomicilio(d) {
+  return {
+    ...DOMICILIO_VACIO,
+    ...separarDireccion(d.direccion),
+    entre_calles: d.entre_calles,
+    referencia: d.referencia,
+    zona_id: String(d.zona_id),
+    localidad: d.localidad || BARRIOS_POR_ZONA[d.zona_id]?.[0] || "",
+  };
+}
 
 const VACIO = {
   nombre: "",
@@ -48,8 +63,42 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
   const [error, setError] = useState(null);
   const [copiado, setCopiado] = useState(false);
   const timerTel = useRef(null);
+  const [directorio, setDirectorio] = useState(null); // clientes con sus domicilios (null = sin cargar / no disponible)
+  const [busqueda, setBusqueda] = useState("");
+  const [cliente, setCliente] = useState(null); // cliente existente elegido en el buscador
+  const [domicilioIdx, setDomicilioIdx] = useState(null); // índice en cliente.domicilios, o null = otro domicilio
 
   const editando = Boolean(pedidoId);
+
+  // Si no se puede cargar el directorio, el buscador no aparece y se carga a mano como siempre.
+  const cargarDirectorio = () => api.directorioClientes().then(setDirectorio).catch(() => setDirectorio(null));
+  useEffect(() => { if (!editando) cargarDirectorio(); }, [editando]);
+
+  function elegirCliente(c) {
+    setCliente(c);
+    setBusqueda("");
+    setDomicilioIdx(c.domicilios.length ? 0 : null);
+    setForm((f) => ({
+      ...f,
+      ...CLIENTE_VACIO,
+      ...separarNombreCompleto(c.nombre),
+      cliente_telefono: c.telefono,
+      ...(c.domicilios.length ? camposDomicilio(c.domicilios[0]) : {}),
+    }));
+  }
+
+  function elegirDomicilio(i) {
+    setDomicilioIdx(i);
+    setForm((f) => ({ ...f, ...(i === null ? DOMICILIO_VACIO : camposDomicilio(cliente.domicilios[i])) }));
+  }
+
+  function quitarCliente() {
+    setCliente(null);
+    setDomicilioIdx(null);
+    setForm((f) => ({ ...f, ...CLIENTE_VACIO }));
+  }
+
+  const resultados = directorio && !cliente ? buscarClientes(directorio, busqueda) : [];
 
   useEffect(() => {
     if (!pedidoId) return;
@@ -183,7 +232,7 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
         >
           {copiado ? "✅ Copiado — pegalo en WhatsApp" : "📋 Copiar confirmación para WhatsApp"}
         </button>
-        <button className="secundario" onClick={() => { setGuardado(null); setCopiado(false); setForm(VACIO); }}>
+        <button className="secundario" onClick={() => { setGuardado(null); setCopiado(false); setForm(VACIO); quitarCliente(); cargarDirectorio(); }}>
           ➕ Cargar otro pedido
         </button>
         <button className="secundario" onClick={() => navegar("tablero")}>Ir al tablero</button>
@@ -194,6 +243,52 @@ export default function NuevoPedido({ zonas, config, pedidoId, navegar }) {
   return (
     <div className="tarjeta">
       <h2>{editando ? "✏️ Editar pedido" : "➕ Nuevo pedido"}</h2>
+
+      {!editando && directorio?.length > 0 && (cliente ? (
+        <div className="aviso ok">
+          <div className="linea" style={{ padding: 0, alignItems: "center" }}>
+            <span>👤 <strong>{cliente.nombre}</strong> · {cliente.telefono}{cliente.compras ? ` · ${cliente.compras} compra${cliente.compras === 1 ? "" : "s"}` : ""}</span>
+            <button type="button" className="chico secundario" onClick={quitarCliente}>✕ Quitar</button>
+          </div>
+          <div className="domicilios">
+            {cliente.domicilios.map((d, i) => (
+              <button
+                type="button"
+                key={i}
+                className={`chico ${domicilioIdx === i ? "primario" : "secundario"}`}
+                onClick={() => elegirDomicilio(i)}
+              >
+                📍 {d.direccion}{d.localidad ? ` · ${d.localidad}` : ""}
+              </button>
+            ))}
+            <button
+              type="button"
+              className={`chico ${domicilioIdx === null ? "primario" : "secundario"}`}
+              onClick={() => elegirDomicilio(null)}
+            >
+              ➕ Otro domicilio
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <label>🔎 Cliente existente</label>
+          <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por nombre, apellido o teléfono…" />
+          {resultados.length > 0 && (
+            <div className="resultados-cliente">
+              {resultados.map((c) => (
+                <button type="button" key={c.telefono} onClick={() => elegirCliente(c)}>
+                  <strong>{c.nombre}</strong> <span className="mini">· {c.telefono}{c.compras ? ` · ${c.compras} compra${c.compras === 1 ? "" : "s"}` : ""}</span>
+                  {c.domicilios[0] && <div className="mini">📍 {c.domicilios[0].direccion}{c.domicilios[0].localidad ? ` · ${c.domicilios[0].localidad}` : ""}{c.domicilios.length > 1 ? ` (+${c.domicilios.length - 1})` : ""}</div>}
+                </button>
+              ))}
+            </div>
+          )}
+          {busqueda.trim().length >= 2 && resultados.length === 0 && (
+            <p className="mini">Sin coincidencias: si es un cliente nuevo, cargalo abajo.</p>
+          )}
+        </>
+      ))}
 
       <div className="fila">
         <div>

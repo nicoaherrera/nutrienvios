@@ -1,5 +1,5 @@
 import { rol, sb, fail } from "./_lib.js";
-import { agregarClientes, hoyISO } from "../src/logic.js";
+import { agregarClientes, directorioClientes, hoyISO } from "../src/logic.js";
 
 export default async function handler(req, res) {
   const quien = rol(req);
@@ -8,6 +8,17 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
   try {
+    // ?directorio=1 → clientes con sus domicilios, para precargar la carga de pedidos.
+    // Más nuevos primero: si algún día se pasa del límite de filas de Supabase,
+    // lo que queda afuera son los pedidos más viejos.
+    if (req.query.directorio) {
+      const data = await sb(
+        "pedidos?select=cliente_telefono,cliente_nombre,direccion,entre_calles,referencia,zona_id,localidad,fecha_entrega,created_at,estado" +
+        "&estado=neq.cancelado&order=created_at.desc"
+      );
+      return res.status(200).json(directorioClientes(data));
+    }
+
     const data = await sb(
       "pedidos?select=cliente_telefono,cliente_nombre,monto_pedido,fecha_entrega,estado&estado=eq.entregado&order=fecha_entrega.asc"
     );
