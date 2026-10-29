@@ -14,7 +14,7 @@ import {
   componerDireccion, separarDireccion, componerNombreCompleto, separarNombreCompleto,
   ordenRutaAbierta,
   esZonaPropia, resumenPedidoTiendaNube, mensajeAperturaClienteTiendaNube, linkAvisoVendedorTiendaNube,
-  directorioClientes, buscarClientes,
+  directorioClientes, buscarClientes, claveTelefono,
 } from "../src/logic.js";
 
 const config = {
@@ -763,4 +763,31 @@ test("buscarClientes: texto vacío o muy corto no lista nada; respeta el máximo
   assert.deepEqual(buscarClientes(dir, "a"), []);
   assert.deepEqual(buscarClientes(dir, "22"), []);
   assert.equal(buscarClientes(dir, "221", 1).length, 1);
+});
+
+// --- Mismo teléfono escrito con o sin +54 / 9 / 0 / 15 = mismo cliente ---
+
+test("claveTelefono: todas las formas de escribir un celular argentino dan el número nacional", () => {
+  for (const t of ["2215550001", "221 555-0001", "+54 9 221 555-0001", "5492215550001", "542215550001",
+                   "0221 555 0001", "0221 15 555 0001", "221 15 555 0001", "0054 9 221 5550001"]) {
+    assert.equal(claveTelefono(t), "2215550001", t);
+  }
+  assert.equal(claveTelefono("+54 9 11 1234-5678"), "1112345678");
+  assert.equal(claveTelefono("11 15 1234 5678"), "1112345678");
+  assert.equal(claveTelefono("221111"), "221111"); // si no parece un número argentino, se deja como está
+});
+
+test("directorio y Clientes: el mismo teléfono con y sin 54 es un solo cliente", () => {
+  const pedidos = [
+    { ...pedidosDirectorio[0], cliente_telefono: "2215550001", cliente_nombre: "Antonela Cerda", monto_pedido: 10000 },
+    { ...pedidosDirectorio[1], cliente_telefono: "5492215550001", cliente_nombre: "Antonela Cerda", monto_pedido: 20000 },
+  ];
+  const dir = directorioClientes(pedidos);
+  assert.equal(dir.length, 1);
+  assert.equal(dir[0].compras, 2);
+  assert.equal(dir[0].telefono, "5492215550001"); // el del pedido más reciente
+
+  const clientes = agregarClientes(pedidos, "2026-10-01");
+  assert.equal(clientes.length, 1);
+  assert.equal(clientes[0].compras, 2);
 });

@@ -15,6 +15,23 @@ export function normalizarTelefono(tel) {
   return String(tel || "").replace(/\D/g, "");
 }
 
+// Identidad del cliente: el mismo celular se carga a veces con +54, con el 9,
+// con 0 o con 15 ("0221 15 555 0001", "5492215550001", "2215550001"), y
+// comparado tal cual parecían clientes distintos (duplicados, "cliente nuevo"
+// que no lo era, 5ta compra mal contada). Para comparar se usa el número
+// nacional de 10 dígitos; si no tiene forma de número argentino, queda igual.
+export function claveTelefono(tel) {
+  let d = normalizarTelefono(tel).replace(/^00/, "");
+  if (d.startsWith("54") && d.length >= 12) d = d.slice(2);
+  if (d.startsWith("9") && d.length === 11) d = d.slice(1);
+  if (d.startsWith("0")) d = d.slice(1);
+  // El 15 va después de la característica (2, 3 o 4 dígitos); 221 primero, que es La Plata.
+  if (d.length === 12) {
+    for (const i of [3, 2, 4]) if (d.slice(i, i + 2) === "15") return d.slice(0, i) + d.slice(i + 2);
+  }
+  return d;
+}
+
 export function esEnvioGratis(montoPedido, config) {
   return Number(montoPedido) >= Number(config.umbral_envio_gratis);
 }
@@ -647,15 +664,16 @@ export function agregarClientes(pedidos, hoy = hoyISO()) {
   const mapa = new Map();
   for (const p of pedidos) {
     if (p.estado !== "entregado") continue;
-    const tel = p.cliente_telefono;
-    const item = mapa.get(tel) || { telefono: tel, nombre: p.cliente_nombre, compras: 0, gastoTotal: 0, ultimaEntrega: null };
+    const clave = claveTelefono(p.cliente_telefono);
+    const item = mapa.get(clave) || { telefono: p.cliente_telefono, nombre: p.cliente_nombre, compras: 0, gastoTotal: 0, ultimaEntrega: null };
     item.compras += 1;
     item.gastoTotal += Number(p.monto_pedido);
     if (!item.ultimaEntrega || p.fecha_entrega > item.ultimaEntrega) {
       item.ultimaEntrega = p.fecha_entrega;
       item.nombre = p.cliente_nombre;
+      item.telefono = p.cliente_telefono;
     }
-    mapa.set(tel, item);
+    mapa.set(clave, item);
   }
   const hoyDate = new Date(hoy + "T00:00:00");
   return [...mapa.values()]
@@ -690,10 +708,10 @@ export function directorioClientes(pedidos) {
     .sort((a, b) => (b.fecha_entrega + b.created_at).localeCompare(a.fecha_entrega + a.created_at));
   const mapa = new Map();
   for (const p of recientes) {
-    const tel = p.cliente_telefono;
+    const tel = claveTelefono(p.cliente_telefono);
     let c = mapa.get(tel);
     if (!c) {
-      c = { telefono: tel, nombre: p.cliente_nombre, compras: 0, ultimoPedido: p.fecha_entrega, domicilios: [], _claves: new Set() };
+      c = { telefono: p.cliente_telefono, nombre: p.cliente_nombre, compras: 0, ultimoPedido: p.fecha_entrega, domicilios: [], _claves: new Set() };
       mapa.set(tel, c);
     }
     if (p.estado === "entregado") c.compras += 1;

@@ -1,4 +1,5 @@
 import { rol, sb, fail } from "./_lib.js";
+import { claveTelefono } from "../src/logic.js";
 
 const SELECT = "select=*,zona:zonas(*)";
 
@@ -34,7 +35,14 @@ export default async function handler(req, res) {
       // caja cuenta el día en que se hizo el ticket, no el de entrega.
       if (cargado_desde) filtros.push(`created_at=gte.${encodeURIComponent(cargado_desde)}`);
       if (cargado_hasta) filtros.push(`created_at=lte.${encodeURIComponent(cargado_hasta)}`);
-      if (telefono) filtros.push(`cliente_telefono=eq.${encodeURIComponent(telefono)}`);
+      // Termina en el número nacional: encuentra el mismo cliente aunque se haya
+      // cargado con +54 / 9 / 0 (los guardados con "15" en el medio no los agarra).
+      if (telefono) {
+        const clave = claveTelefono(telefono);
+        filtros.push(clave.length === 10
+          ? `cliente_telefono=like.*${encodeURIComponent(clave)}`
+          : `cliente_telefono=eq.${encodeURIComponent(telefono)}`);
+      }
       if (!filtros.length) return res.status(400).json({ error: "Falta filtro (fecha, desde/hasta, cargado_desde/cargado_hasta, telefono o id)" });
       const data = await sb(`pedidos?${SELECT}&${filtros.join("&")}&order=created_at.asc`);
       return res.status(200).json(data);
